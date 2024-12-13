@@ -71,6 +71,118 @@ def fetch_conversation_data(conversation_id):
         st.error(f"Error in fetch_conversation_data: {str(e)}")
         return None, None, None
 
+def display_formatted_conversation(conversation, contexts, messages):
+    """Display conversation data in a formatted, user-friendly way"""
+    # Add margins for the entire formatted view
+    st.markdown("""
+        <style>
+        .formatted-view {
+            margin: 0 20% !important;
+            max-width: 800px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+        .user-message {
+            background-color: #e8f4f9;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 10px 0;
+            border-left: 5px solid #2196F3;
+        }
+        .system-message {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 10px 0;
+            border-left: 5px solid #4CAF50;
+        }
+        .message-header {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        .message-content {
+            margin-top: 10px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Wrap everything in a div with margins
+    st.markdown('<div class="formatted-view">', unsafe_allow_html=True)
+    
+    # Conversation Overview
+    st.subheader("💬 Conversation Overview")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.info(f"**ID:** {conversation.get('conversation_id', 'N/A')}")
+        st.info(f"**Status:** {conversation.get('status', 'N/A')}")
+    with col2:
+        st.info(f"**Created:** {conversation.get('created_at', 'N/A')}")
+        st.info(f"**Updated:** {conversation.get('updated_at', 'N/A')}")
+
+    # Message History
+    if messages:
+        st.subheader("💭 Conversation")
+        
+        for msg in messages:
+            role = msg.get('role', 'unknown').lower()
+            content = msg.get('content', 'No content')
+            timestamp = msg.get('timestamp', 'N/A')
+            
+            # Format timestamp if it's a Unix timestamp
+            try:
+                if isinstance(timestamp, (int, float)):
+                    from datetime import datetime
+                    timestamp = datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M:%S')
+            except:
+                pass
+
+            # Create message container based on role
+            if role == 'user':
+                st.markdown(f"""
+                    <div class="user-message">
+                        <div class="message-header">
+                            👤 User • {timestamp}
+                        </div>
+                        <div class="message-content">
+                            {content}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                # For system/assistant messages
+                st.markdown(f"""
+                    <div class="system-message">
+                        <div class="message-header">
+                            🤖 Assistant • {timestamp}
+                        </div>
+                        <div class="message-content">
+                            {content}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.info("No messages available")
+
+    # Context Entries
+    if contexts:
+        st.subheader("📚 Context Entries")
+        for i, context in enumerate(contexts, 1):
+            with st.expander(f"Context Entry {i}"):
+                if 'content' in context:
+                    st.markdown(f"**Content:** {context['content']}")
+                if 'metadata' in context:
+                    st.markdown("**Metadata:**")
+                    for key, value in context['metadata'].items():
+                        st.markdown(f"- {key}: {value}")
+                if 'embedding' in context:
+                    st.markdown(f"**Embedding Size:** {len(context['embedding'])}")
+    else:
+        st.info("No context entries available")
+    
+    # Close the margin wrapper
+    st.markdown('</div>', unsafe_allow_html=True)
+
 def main():
     # Set page config to wide mode
     st.set_page_config(layout="wide")
@@ -127,7 +239,7 @@ def main():
                     st.markdown("</div>", unsafe_allow_html=True)
                 
                 with tab2:
-                    st.info("Formatted view coming soon! 🚧")
+                    display_formatted_conversation(conversation, contexts, messages)
             else:
                 st.error("No conversation found with this ID")
 
