@@ -114,48 +114,30 @@ def fetch_conversation_data(conversation_id: str) -> tuple:
         st.error(f"Error in fetch_conversation_data: {str(e)}")
         return None, None, None, None
 
-def escape_html_preserve_markdown(content: str) -> str:
-    """Escape HTML characters while preserving markdown formatting.
-
+def escape_html_preserve_markdown(text: str) -> str:
+    """Escape HTML while preserving markdown formatting.
+    
     Args:
-        content (str): Raw content containing markdown and possibly HTML
-
-    Returns:
-        str: HTML-escaped content with preserved markdown formatting
-    """
-    if not content:
-        return ""
+        text (str): Text to escape
         
-    # Save markdown code blocks
-    code_blocks = []
-    def save_code_block(match):
-        code_blocks.append(match.group(0))
-        return f"CODE_BLOCK_{len(code_blocks)-1}_"
-    
-    # Save inline code
-    inline_codes = []
-    def save_inline_code(match):
-        inline_codes.append(match.group(0))
-        return f"INLINE_CODE_{len(inline_codes)-1}_"
-    
-    # First, escape any existing div tags or other HTML
-    content = re.sub(r'</?\s*div[^>]*>', '', content)  # Remove div tags
-    content = re.sub(r'<br\s*/?>', '\n', content)  # Convert <br> to newlines
-    
-    # Save code blocks and inline code
-    content = re.sub(r'```[\s\S]*?```', save_code_block, content)
-    content = re.sub(r'`[^`]+`', save_inline_code, content)
-    
-    # Escape HTML while preserving common markdown characters
-    content = html.escape(content)
-    
-    # Restore code blocks and inline code
-    for i, block in enumerate(code_blocks):
-        content = content.replace(f"CODE_BLOCK_{i}_", block)
-    for i, code in enumerate(inline_codes):
-        content = content.replace(f"INLINE_CODE_{i}_", code)
-    
-    return content
+    Returns:
+        str: Escaped text with preserved markdown
+    """
+    try:
+        # Replace HTML tags with their escaped versions, except for markdown-related tags
+        escaped = text.replace('&', '&amp;')\
+                     .replace('<', '&lt;')\
+                     .replace('>', '&gt;')\
+                     .replace('"', '&quot;')\
+                     .replace("'", '&#39;')
+        
+        # Remove any remaining HTML-like tags that might break the layout
+        escaped = re.sub(r'</div>', '', escaped)
+        escaped = re.sub(r'<div[^>]*>', '', escaped)
+        
+        return escaped
+    except:
+        return 'Error processing message content'
 
 def format_timestamp(timestamp) -> str:
     """Format Unix timestamp to human-readable datetime string.
@@ -173,49 +155,41 @@ def format_timestamp(timestamp) -> str:
     except:
         return 'N/A'
 
-def display_formatted_conversation(conversation: dict, contexts: list, messages: list) -> None:
-    """Display conversation data in a formatted, user-friendly way.
+def display_conversation_overview(conversation_details: dict, messages: list):
+    """Display conversation overview in columns."""
+    if not conversation_details:
+        st.warning("No conversation details found in muse-application")
+        return
 
-    Args:
-        conversation (dict): Conversation metadata and details
-        contexts (list): List of context entries
-        messages (list): List of conversation messages
-    """
-    # Create three columns for Overview, Statistics, and Metadata
-    overview_col, stats_col, meta_col = st.columns(3)
-    
-    # Conversation Overview
-    with overview_col:
+    # Create three columns for better organization
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
         st.subheader("💭 Overview")
-        st.info(f"**ID:** {conversation.get('conversation_id', 'N/A')}")
-        st.info(f"**Schema:** v{conversation.get('schema_version', 'N/A')}")
+        # Use get() with default values to handle missing fields
+        st.write("ID:", conversation_details.get('id', conversation_details.get('conversation_id', 'Unknown')))
         
-        # The timestamps might be in message_history[0] for the first message
-        first_msg = messages[0] if messages else {}
-        last_msg = messages[-1] if messages else {}
+        # Get schema version from the document structure
+        if 'history' in conversation_details:
+            st.write("Schema:", "v2")  # New schema with 'history' field
+        elif 'message_history' in conversation_details:
+            st.write("Schema:", "v1")  # Old schema with 'message_history' field
+        else:
+            st.write("Schema:", "Unknown")
         
-        created_time = (
-            format_timestamp(first_msg.get('timestamp')) if first_msg 
-            else format_timestamp(conversation.get('created_at', 'N/A'))
-        )
-        updated_time = (
-            format_timestamp(last_msg.get('timestamp')) if last_msg 
-            else format_timestamp(conversation.get('last_updated_timestamp', 'N/A'))
-        )
-        st.info(f"**Created:** {created_time}")
-        st.info(f"**Updated:** {updated_time}")
+        # Format timestamps if they exist
+        created = conversation_details.get('created')
+        if created:
+            st.write("Created:", format_timestamp(created))
         
-        # Add Internal Unity and OPT status from the first message's metadata
-        if first_msg:
-            is_internal = "✅" if first_msg.get('is_internal_unity') else "❌"
-            opt_status = first_msg.get('opt_status', 'N/A')
-            st.info(f"**Internal Unity:** {is_internal}  \n**OPT Status:** {opt_status}")
-    
-    # Message Statistics
-    with stats_col:
+        updated = conversation_details.get('updated')
+        if updated:
+            st.write("Updated:", format_timestamp(updated))
+
+    with col2:
         st.subheader("📊 Statistics")
         if messages:
-            # Count messages by role
+            # Count messages by role from the messages list
             role_counts = {}
             for msg in messages:
                 role = msg.get('role', 'unknown').lower()
@@ -225,76 +199,113 @@ def display_formatted_conversation(conversation: dict, contexts: list, messages:
             st.metric("User Messages", role_counts.get('user', 0))
             st.metric("Assistant Messages", role_counts.get('assistant', 0))
         else:
-            st.info("No messages available")
-    
-    # Conversation Metadata
-    with meta_col:
-        st.subheader("🏷️ Metadata")
-        if messages:
-            # Get the first message with classification results
-            for msg in messages:
-                if class_results := msg.get('front_desk_classification_results'):
-                    st.info(f"**Language:** {class_results.get('user_language', 'N/A')}")
-                    unity_topics = class_results.get('unity_topics', [])
-                    if unity_topics:
-                        st.info(f"**Topics:** {', '.join(unity_topics[:2])}{'...' if len(unity_topics) > 2 else ''}")
-                    break
-        else:
-            st.info("No metadata available")
-    
-    # Message History (full width)
-    if messages:
-        st.markdown("---")  # Add a separator
-        st.subheader("💬 Conversation")
-        
-        for msg in messages:
-            role = msg.get('role', 'unknown').lower()
-            content = msg.get('content', 'No content')
-            timestamp = format_timestamp(msg.get('timestamp', 'N/A'))
-            
-            # Create message container based on role
-            if role == 'user':
-                # For user messages, escape HTML in content
-                escaped_content = escape_html_preserve_markdown(content)
-                st.markdown(f"""
-                    <div class="user-message">
-                        <div class="message-header">
-                            👤 User • {timestamp}
-                        </div>
-                        <div class="message-content">
-                            {escaped_content}
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                # For system messages, escape HTML but preserve markdown
-                escaped_content = escape_html_preserve_markdown(content)
-                st.markdown(f"""
-                    <div class="system-message">
-                        <div class="message-header">
-                            🤖 Assistant • {timestamp}
-                        </div>
-                        <div class="message-content">
-                            {escaped_content}
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
+            st.write("No messages found")
 
-    # Context Entries
-    if contexts:
-        st.subheader("📚 Context Entries")
-        for i, context in enumerate(contexts, 1):
-            with st.expander(f"Context Entry {i}"):
-                if 'content' in context:
-                    st.markdown(f"**Content:** {context['content']}")
-                if 'metadata' in context:
-                    st.markdown("**Metadata:**")
-                    for key, value in context['metadata'].items():
-                        st.markdown(f"- {key}: {value}")
-                if 'embedding' in context:
-                    st.markdown(f"**Embedding Size:** {len(context['embedding'])}")
+    with col3:
+        st.subheader("🏷️ Metadata")
+        # Use emoji for internal unity status
+        first_msg = messages[0] if messages else {}
+        is_internal = first_msg.get('is_internal_unity', False)
+        internal_emoji = "✅" if is_internal else "❌"
+        st.write("Internal Unity:", internal_emoji)
+        
+        # Use emoji for opt status
+        opt_status = first_msg.get('opt_status', '')
+        opt_emoji = "✅" if opt_status.lower() == 'in' else "❌"
+        st.write("OPT Status:", opt_emoji)
+        
+        # Display language and topics if available
+        if first_msg.get('front_desk_classification_results'):
+            classification = first_msg['front_desk_classification_results']
+            if 'user_language' in classification:
+                st.write("Language:", classification['user_language'])
+            if 'unity_topics' in classification:
+                st.write("Topics:", ", ".join(classification['unity_topics']))
+
+def display_formatted_conversation(conversation: dict, contexts: list, messages: list) -> None:
+    """Display conversation data in a formatted, user-friendly way.
+    
+    Args:
+        conversation (dict): Conversation metadata and details
+        contexts (list): List of context entries (deprecated)
+        messages (list): List of conversation messages
+    """
+    # Display conversation overview with all details
+    display_conversation_overview(conversation, messages)
+    
+    # Display message history
+    if messages:
+        st.subheader("💬 Message History")
+        for msg in messages:
+            display_message(msg)
     else:
-        st.info("No context entries available")
+        st.warning("No messages found in the conversation")
+
+def display_message(msg: dict) -> None:
+    """Display a single message with appropriate styling.
+    
+    Args:
+        msg (dict): Message data to display
+    """
+    role = msg.get('role', 'unknown').lower()
+    content = msg.get('content', 'No content')
+    timestamp = format_timestamp(msg.get('timestamp', 'N/A'))
+    
+    # Determine message style based on role
+    if role == 'user':
+        st.markdown(f"""
+            <div style="
+                background-color: #e3f2fd;
+                padding: 15px;
+                border-radius: 10px;
+                margin: 10px 0;
+                border-left: 5px solid #1976d2;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            ">
+                <div style="
+                    margin-bottom: 8px;
+                    color: #1976d2;
+                    font-weight: 500;
+                ">
+                    <strong>👤 User</strong> • {timestamp}
+                </div>
+                <div style="
+                    color: #1565c0;
+                    background-color: rgba(25, 118, 210, 0.05);
+                    padding: 10px;
+                    border-radius: 5px;
+                ">
+                    {escape_html_preserve_markdown(content)}
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+            <div style="
+                background-color: #e8f5e9;
+                padding: 15px;
+                border-radius: 10px;
+                margin: 10px 0;
+                border-left: 5px solid #2e7d32;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            ">
+                <div style="
+                    margin-bottom: 8px;
+                    color: #2e7d32;
+                    font-weight: 500;
+                ">
+                    <strong>🤖 Assistant</strong> • {timestamp}
+                </div>
+                <div style="
+                    color: #1b5e20;
+                    background-color: rgba(46, 125, 50, 0.05);
+                    padding: 10px;
+                    border-radius: 5px;
+                ">
+                    {escape_html_preserve_markdown(content)}
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
 def main():
     """Main application entry point."""
