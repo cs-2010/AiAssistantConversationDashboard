@@ -3,6 +3,8 @@ from pymongo import MongoClient
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import html
+import re
 
 # MongoDB connection setup
 def get_mongodb_uri():
@@ -71,45 +73,42 @@ def fetch_conversation_data(conversation_id):
         st.error(f"Error in fetch_conversation_data: {str(e)}")
         return None, None, None
 
+def escape_html_preserve_markdown(content):
+    """Escape HTML but preserve markdown formatting"""
+    import re
+    import html
+    
+    # Save markdown code blocks
+    code_blocks = []
+    def save_code_block(match):
+        code_blocks.append(match.group(0))
+        return f"CODE_BLOCK_{len(code_blocks)-1}_"
+    
+    content = re.sub(r'```[\s\S]*?```', save_code_block, content)
+    
+    # Save inline code
+    inline_codes = []
+    def save_inline_code(match):
+        inline_codes.append(match.group(0))
+        return f"INLINE_CODE_{len(inline_codes)-1}_"
+    
+    content = re.sub(r'`[^`]+`', save_inline_code, content)
+    
+    # Escape HTML
+    content = html.escape(content)
+    
+    # Restore code blocks
+    for i, block in enumerate(code_blocks):
+        content = content.replace(f"CODE_BLOCK_{i}_", block)
+    
+    # Restore inline code
+    for i, code in enumerate(inline_codes):
+        content = content.replace(f"INLINE_CODE_{i}_", code)
+    
+    return content
+
 def display_formatted_conversation(conversation, contexts, messages):
     """Display conversation data in a formatted, user-friendly way"""
-    # Add margins for the entire formatted view
-    st.markdown("""
-        <style>
-        .formatted-view {
-            margin: 0 20% !important;
-            max-width: 800px !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-        }
-        .user-message {
-            background-color: #e8f4f9;
-            padding: 15px;
-            border-radius: 15px;
-            margin: 10px 0;
-            border-left: 5px solid #2196F3;
-        }
-        .system-message {
-            background-color: #f5f5f5;
-            padding: 15px;
-            border-radius: 15px;
-            margin: 10px 0;
-            border-left: 5px solid #4CAF50;
-        }
-        .message-header {
-            color: #666;
-            font-size: 0.9em;
-            margin-bottom: 8px;
-        }
-        .message-content {
-            margin-top: 10px;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # Wrap everything in a div with margins
-    st.markdown('<div class="formatted-view">', unsafe_allow_html=True)
-    
     # Conversation Overview
     st.subheader("💬 Conversation Overview")
     col1, col2 = st.columns(2)
@@ -139,30 +138,31 @@ def display_formatted_conversation(conversation, contexts, messages):
 
             # Create message container based on role
             if role == 'user':
+                # For user messages, escape HTML in content
+                escaped_content = html.escape(content)
                 st.markdown(f"""
                     <div class="user-message">
                         <div class="message-header">
                             👤 User • {timestamp}
                         </div>
                         <div class="message-content">
-                            {content}
+                            {escaped_content}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
             else:
-                # For system/assistant messages
+                # For system messages, escape HTML but preserve markdown
+                escaped_content = escape_html_preserve_markdown(content)
                 st.markdown(f"""
                     <div class="system-message">
                         <div class="message-header">
                             🤖 Assistant • {timestamp}
                         </div>
                         <div class="message-content">
-                            {content}
+                            {escaped_content}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
-    else:
-        st.info("No messages available")
 
     # Context Entries
     if contexts:
@@ -179,13 +179,47 @@ def display_formatted_conversation(conversation, contexts, messages):
                     st.markdown(f"**Embedding Size:** {len(context['embedding'])}")
     else:
         st.info("No context entries available")
-    
-    # Close the margin wrapper
-    st.markdown('</div>', unsafe_allow_html=True)
 
 def main():
     # Set page config to wide mode
     st.set_page_config(layout="wide")
+    
+    # Add CSS for the formatted view tab
+    st.markdown("""
+        <style>
+        /* Style for the formatted view tab */
+        [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"]:has([role="tab"][aria-selected="true"]:contains("Formatted View")) {
+            margin: 0 20% !important;
+            max-width: 800px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+        
+        /* Message styles */
+        .user-message {
+            background-color: #e8f4f9;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 10px 0;
+            border-left: 5px solid #2196F3;
+        }
+        .system-message {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 10px 0;
+            border-left: 5px solid #4CAF50;
+        }
+        .message-header {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        .message-content {
+            margin-top: 10px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
     
     # Centered title with emoji
     st.markdown("<h1 style='text-align: center'>🔍 Conversation Analytics Dashboard</h1>", unsafe_allow_html=True)
