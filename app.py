@@ -1,14 +1,28 @@
+# Standard library imports
+import os
+from datetime import datetime
+from pathlib import Path
+
+# Third-party imports
 import streamlit as st
 from pymongo import MongoClient
-from pathlib import Path
 from dotenv import load_dotenv
-import os
 import html
 import re
 
-# MongoDB connection setup
-def get_mongodb_uri():
-    """Get MongoDB URI from environment"""
+# Constants
+DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+DEFAULT_MONGO_TIMEOUT = 30000
+
+def get_mongodb_uri() -> str:
+    """Retrieve MongoDB URI from environment variables.
+
+    Returns:
+        str: MongoDB connection URI
+
+    Raises:
+        ValueError: If MONGO_URI environment variable is not set
+    """
     env_path = Path(__file__).parent / '.env'
     load_dotenv(dotenv_path=env_path)
     uri = os.getenv("MONGO_URI")
@@ -16,15 +30,15 @@ def get_mongodb_uri():
         raise ValueError("MONGO_URI environment variable is not set. Please check your .env file.")
     return str(uri).strip()
 
-# MongoDB client with connection options
+# Initialize MongoDB client with connection options
 try:
     MONGO_URI = get_mongodb_uri()
     client = MongoClient(
         MONGO_URI,
-        connectTimeoutMS=30000,
-        socketTimeoutMS=30000,
-        serverSelectionTimeoutMS=30000,
-        waitQueueTimeoutMS=30000,
+        connectTimeoutMS=DEFAULT_MONGO_TIMEOUT,
+        socketTimeoutMS=DEFAULT_MONGO_TIMEOUT,
+        serverSelectionTimeoutMS=DEFAULT_MONGO_TIMEOUT,
+        waitQueueTimeoutMS=DEFAULT_MONGO_TIMEOUT,
         retryWrites=True,
         tls=True,
     )
@@ -33,10 +47,25 @@ except Exception as e:
     raise
 
 def get_database(database_name: str):
-    """Returns a MongoDB database object."""
+    """Get a MongoDB database instance.
+
+    Args:
+        database_name (str): Name of the database to connect to
+
+    Returns:
+        Database: MongoDB database object
+    """
     return client[database_name]
 
-def fetch_conversation_data(conversation_id):
+def fetch_conversation_data(conversation_id: str) -> tuple:
+    """Fetch conversation data, contexts, and messages from MongoDB.
+
+    Args:
+        conversation_id (str): Unique identifier for the conversation
+
+    Returns:
+        tuple: (analytics_data, context_entries, messages) or (None, None, None) if not found
+    """
     try:
         # Access databases
         app_db = get_database("muse-application")
@@ -53,31 +82,31 @@ def fetch_conversation_data(conversation_id):
         # Get all context data for this conversation
         context_entries = []
         if "message_history" in analytics_data:
-            context_ids = set()  # To avoid duplicates
-            for message in analytics_data["message_history"]:
-                if message.get("context_id"):
-                    context_ids.add(message["context_id"])
+            context_ids = {msg["context_id"] for msg in analytics_data["message_history"] 
+                         if msg.get("context_id")}
             
             # Fetch all unique context entries
-            for context_id in context_ids:
-                context_data = app_db.context.find_one({"id": context_id})
-                if context_data:
-                    context_entries.append(context_data)
+            context_entries = [
+                context_data for context_id in context_ids
+                if (context_data := app_db.context.find_one({"id": context_id}))
+            ]
         
-        # Get messages from the message history
         messages = analytics_data.get("message_history", [])
-        
         return analytics_data, context_entries, messages
         
     except Exception as e:
         st.error(f"Error in fetch_conversation_data: {str(e)}")
         return None, None, None
 
-def escape_html_preserve_markdown(content):
-    """Escape HTML but preserve markdown formatting"""
-    import re
-    import html
-    
+def escape_html_preserve_markdown(content: str) -> str:
+    """Escape HTML characters while preserving markdown formatting.
+
+    Args:
+        content (str): Raw content containing markdown and possibly HTML
+
+    Returns:
+        str: HTML-escaped content with preserved markdown formatting
+    """
     # Save markdown code blocks
     code_blocks = []
     def save_code_block(match):
@@ -97,18 +126,38 @@ def escape_html_preserve_markdown(content):
     # Escape HTML
     content = html.escape(content)
     
-    # Restore code blocks
+    # Restore code blocks and inline code
     for i, block in enumerate(code_blocks):
         content = content.replace(f"CODE_BLOCK_{i}_", block)
-    
-    # Restore inline code
     for i, code in enumerate(inline_codes):
         content = content.replace(f"INLINE_CODE_{i}_", code)
     
     return content
 
-def display_formatted_conversation(conversation, contexts, messages):
-    """Display conversation data in a formatted, user-friendly way"""
+def format_timestamp(timestamp) -> str:
+    """Format Unix timestamp to human-readable datetime string.
+
+    Args:
+        timestamp: Unix timestamp in milliseconds or existing datetime string
+
+    Returns:
+        str: Formatted datetime string
+    """
+    try:
+        if isinstance(timestamp, (int, float)):
+            return datetime.fromtimestamp(timestamp/1000).strftime(DATETIME_FORMAT)
+        return timestamp
+    except:
+        return 'N/A'
+
+def display_formatted_conversation(conversation: dict, contexts: list, messages: list) -> None:
+    """Display conversation data in a formatted, user-friendly way.
+
+    Args:
+        conversation (dict): Conversation metadata and details
+        contexts (list): List of context entries
+        messages (list): List of conversation messages
+    """
     # Conversation Overview
     st.subheader("💬 Conversation Overview")
     col1, col2 = st.columns(2)
@@ -126,16 +175,8 @@ def display_formatted_conversation(conversation, contexts, messages):
         for msg in messages:
             role = msg.get('role', 'unknown').lower()
             content = msg.get('content', 'No content')
-            timestamp = msg.get('timestamp', 'N/A')
+            timestamp = format_timestamp(msg.get('timestamp', 'N/A'))
             
-            # Format timestamp if it's a Unix timestamp
-            try:
-                if isinstance(timestamp, (int, float)):
-                    from datetime import datetime
-                    timestamp = datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M:%S')
-            except:
-                pass
-
             # Create message container based on role
             if role == 'user':
                 # For user messages, escape HTML in content
@@ -181,6 +222,7 @@ def display_formatted_conversation(conversation, contexts, messages):
         st.info("No context entries available")
 
 def main():
+    """Main application entry point."""
     # Set page config to wide mode
     st.set_page_config(layout="wide")
     
