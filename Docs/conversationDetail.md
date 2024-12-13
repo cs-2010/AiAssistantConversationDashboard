@@ -1,100 +1,88 @@
-# Message History File Format Documentation
+# Conversation History Data Format Documentation
 
 ## Overview
-The Message History file format is a JSON-based structure designed to store conversation histories with associated metadata, classifications, and performance metrics.
+This document describes a JSON format designed to store complete conversation histories in Unity/game development context, including messages, functions, and contextual data.
 
 ## Base Structure
 ```json
 {
-  "_id": "<string>",
-  "schema_version": <number>,
-  "conversation_id": "<string>",
-  "message_history": [...],
-  "last_updated_timestamp": <number>
+  "_id": "<ObjectId>",
+  "id": "<string>",
+  "title": "<string>",
+  "history": [<array of messages>],
+  "owners": ["<user ids>"],
+  "tags": [],
+  "context": null,
+  "is_favorite": <boolean>,
+  "function_catalog": [<array of functions>]
 }
 ```
 
-### Root Fields
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | string | Unique identifier for the conversation |
-| `schema_version` | number | Version number of the schema |
-| `conversation_id` | string | Unique conversation identifier |
-| `message_history` | array | Array of message objects |
-| `last_updated_timestamp` | number | Unix timestamp of last update |
-
 ## Message Objects
-Each object in the `message_history` array contains the following structure:
+Each message in the history array contains:
 
 ### Core Fields
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique message identifier |
-| `request_id` | string | Request tracking identifier |
-| `timestamp` | number | Unix timestamp of message |
-| `role` | string | Message sender role (e.g., "user", "assistant") |
+| `request_id` | string | Request tracking ID |
+| `timestamp` | number | Unix timestamp |
+| `role` | string | "user" or "assistant" |
 | `content` | string | Message content |
-| `author` | string | Author identifier/name |
+| `author` | string | Author identifier |
+
+### Metadata Fields
+| Field | Type | Description |
+|-------|------|-------------|
 | `tags` | array | Associated tags |
+| `preferred` | boolean/null | Preference indicator |
+| `context_id` | string/null | Context reference |
+| `is_internal_unity` | boolean | Unity internal flag |
+| `opt_status` | string | Opt status |
+| `is_beta_request` | boolean | Beta flag |
 
-### Optional Metadata
+## Function Catalog
+Each function entry contains:
+
+### Function Definition
 | Field | Type | Description |
 |-------|------|-------------|
-| `preferred` | null/boolean | Preference indicator |
-| `context_id` | null/string | Context identifier |
-| `selected_context_metadata` | null/object | Selected context metadata |
-| `is_internal_unity` | boolean | Internal unity status |
-| `opt_status` | string | Opt status indicator |
-| `is_beta_request` | boolean | Beta request status |
+| `name` | string | Function name |
+| `description` | string | Function purpose |
+| `parameters` | array | Function parameters |
+| `tags` | array | Function tags |
 
-### Classification Data
-Messages may include a `front_desk_classification_results` object containing:
-
+### Parameter Fields
 | Field | Type | Description |
 |-------|------|-------------|
-| `user_language` | string | Detected language |
-| `is_safe` | boolean | Safety check result |
-| `unity_topics` | array | Relevant topics |
-| `sentiment` | string | Message sentiment |
-| `plugins` | array/null | Plugin information |
-| `external_knowledge` | string | Knowledge requirement level |
+| `name` | string | Parameter name |
+| `type` | string | Parameter type |
+| `description` | string | Parameter description |
 
-### Performance Metrics
-| Field | Type | Description |
-|-------|------|-------------|
-| `message_tokens` | object | Token usage metrics |
-| `seconds_until_finished` | number | Processing completion time |
-| `seconds_until_streaming` | number | Time until streaming began |
+## Function Types
+The system includes several core function types:
+
+1. **Project Structure Functions**
+   - ProjectStructureExtractor
+   - ProjectSettingExtractor
+   - SceneHierarchyExtractor
+
+2. **Object Management**
+   - ObjectDataExtractor
+   - TriggerAgentFromPrompt
 
 ## Implementation Notes
 
-### Timestamps
-- All timestamps are stored in Unix timestamp format (milliseconds since epoch)
-- `last_updated_timestamp` tracks the most recent update to the conversation
+### Message Processing
+- Messages are ordered chronologically by timestamp
+- Each message maintains its own context and metadata
+- Responses can include code snippets and instructions
 
-### Nullable Fields
-- Fields marked as nullable may contain null or be omitted
-- Arrays may be empty but should be present if specified in the schema
+### Function Handling
+- Functions are registered in the catalog with full definitions
+- Parameters are strictly typed and documented
+- Each function has specific tags for categorization
 
-### Schema Versioning
-- The `schema_version` field should be checked for compatibility
-- Different versions may have different required/optional fields
-
-### Example Usage
-```json
-{
-  "_id": "ObjectId('123')",
-  "schema_version": 2,
-  "conversation_id": "abc-123",
-  "message_history": [
-    {
-      "id": "msg-1",
-      "role": "user",
-      "content": "Hello",
-      ...
-    }
-  ],
-  "last_updated_timestamp": 1732782425694
-}
-```
-
+### Context Management
+- Context can be tracked at conversation and message level
+- Unity-specific context is maintained through internal flags
