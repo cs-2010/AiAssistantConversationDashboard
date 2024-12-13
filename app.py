@@ -159,7 +159,7 @@ def display_formatted_conversation(conversation: dict, contexts: list, messages:
         messages (list): List of conversation messages
     """
     # Conversation Overview
-    st.subheader("💬 Conversation Overview")
+    st.subheader("💭 Conversation Overview")
     col1, col2 = st.columns(2)
     with col1:
         st.info(f"**ID:** {conversation.get('conversation_id', 'N/A')}")
@@ -170,7 +170,7 @@ def display_formatted_conversation(conversation: dict, contexts: list, messages:
 
     # Message History
     if messages:
-        st.subheader("💭 Conversation")
+        st.subheader("💬 Conversation")
         
         for msg in messages:
             role = msg.get('role', 'unknown').lower()
