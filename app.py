@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 import html
 import re
 
+#######################
+# Constants & Styling #
+#######################
+
 # Constants
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 DEFAULT_MONGO_TIMEOUT = 30000
@@ -61,6 +65,25 @@ ASSISTANT_COLORS = {
     'icon': '🤖'
 }
 
+CONTEXT_COLORS = {
+    'bg_color': '#f3e5f5',
+    'border_color': '#9c27b0',
+    'header_color': '#9c27b0',
+    'text_color': '#6a1b9a',
+    'content_bg': 'rgba(156, 39, 176, 0.05)',
+    'icon': '🔍'
+}
+
+CODE_BLOCK_STYLE = {
+    'bg_color': '#f8f9fa',  # Light grey background
+    'border_color': '#e9ecef',  # Slightly darker grey for border
+    'text_color': '#212529'  # Dark grey for text
+}
+
+######################
+# Database Functions #
+######################
+
 def get_mongodb_uri() -> str:
     """Retrieve MongoDB URI from environment variables."""
     env_path = Path(__file__).parent / '.env'
@@ -90,6 +113,10 @@ def get_database(database_name: str):
     """Get a MongoDB database instance."""
     return client[database_name]
 
+#########################
+# Data Helper Functions #
+#########################
+
 def escape_html_preserve_markdown(text: str) -> str:
     """Escape HTML while preserving markdown formatting.
     
@@ -100,19 +127,66 @@ def escape_html_preserve_markdown(text: str) -> str:
         str: Escaped text with preserved markdown
     """
     try:
-        # Replace HTML tags with their escaped versions, except for markdown-related tags
-        escaped = text.replace('&', '&amp;')\
-                     .replace('<', '&lt;')\
-                     .replace('>', '&gt;')\
-                     .replace('"', '&quot;')\
-                     .replace("'", '&#39;')
+        # Store code blocks temporarily
+        code_blocks = []
+        def save_code_block(match):
+            code_blocks.append(match.group(0))
+            return f"CODE_BLOCK_{len(code_blocks)-1}_PLACEHOLDER"
         
-        # Remove any remaining HTML tags that might break the layout
-        escaped = re.sub(r'</?(div|details|summary)[^>]*>', '', escaped)
+        # Save code blocks before processing
+        processed = re.sub(r'```[\s\S]*?```|`[^`]+`', save_code_block, text)
         
-        return escaped
-    except:
-        return 'Error processing message content'
+        # Replace newlines with <br> tags (except in code blocks)
+        processed = processed.replace('\n', '<br>')
+        
+        # Replace HTML tags with their escaped versions
+        processed = processed.replace('&', '&amp;')\
+                           .replace('<', '&lt;')\
+                           .replace('>', '&gt;')\
+                           .replace('"', '&quot;')\
+                           .replace("'", '&#39;')
+        
+        # Convert back the <br> tags
+        processed = processed.replace('&lt;br&gt;', '<br>')
+        
+        # Clean up any remaining problematic tags
+        processed = re.sub(r'</?(div|span|p)[^>]*>', '', processed)
+        
+        # Restore code blocks with proper formatting
+        def format_code_block(match):
+            index = int(match.group(1))
+            block = code_blocks[index]
+            if block.startswith('```'):
+                # Multi-line code block
+                code_content = block[3:-3].strip()  # Remove ``` and trim
+                language = code_content.split('\n')[0] if code_content else ''
+                code = code_content[len(language):].strip() if language else code_content
+                return f'''<div style="
+                    background-color: {CODE_BLOCK_STYLE['bg_color']};
+                    border: 1px solid {CODE_BLOCK_STYLE['border_color']};
+                    border-radius: 4px;
+                    margin: 8px 0;
+                    padding: 8px 12px;
+                    font-family: monospace;
+                    white-space: pre-wrap;
+                    color: {CODE_BLOCK_STYLE['text_color']};
+                "><code class="language-{language}">{html.escape(code)}</code></div>'''
+            else:
+                # Inline code
+                code = block[1:-1]  # Remove backticks
+                return f'<code style="background-color: {CODE_BLOCK_STYLE["bg_color"]}; padding: 2px 4px; border-radius: 3px; font-family: monospace;">{html.escape(code)}</code>'
+        
+        processed = re.sub(r'CODE_BLOCK_(\d+)_PLACEHOLDER', format_code_block, processed)
+        
+        # Handle other markdown elements (bold, italic, etc.)
+        processed = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', processed)  # Bold
+        processed = re.sub(r'\*(.+?)\*', r'<em>\1</em>', processed)  # Italic
+        processed = re.sub(r'__(.+?)__', r'<strong>\1</strong>', processed)  # Bold
+        processed = re.sub(r'_(.+?)_', r'<em>\1</em>', processed)  # Italic
+        
+        return processed
+    except Exception as e:
+        return f'Error processing message content: {str(e)}'
 
 def format_timestamp(timestamp) -> str:
     """Format Unix timestamp to human-readable datetime string."""
@@ -161,70 +235,85 @@ def fetch_conversation_data(conversation_id: str) -> tuple:
         st.error(f"Error: {str(e)}")
         return None, None, None, None
 
-def display_message(msg: dict) -> None:
-    """Display a single message with appropriate styling."""
-    role = msg.get('role', 'unknown').lower()
-    content = msg.get('content', 'No content')
-    timestamp = format_timestamp(msg.get('timestamp', 'N/A'))
-    
-    # Select color scheme based on role
-    colors = USER_COLORS if role == 'user' else ASSISTANT_COLORS
-    
-    # Render message using template
-    st.markdown(
-        MESSAGE_TEMPLATE.format(
-            role=role.capitalize(),
-            content=escape_html_preserve_markdown(content),
-            timestamp=timestamp,
-            **colors
-        ),
-        unsafe_allow_html=True
-    )
+#############################
+# Display Helper Functions #
+#############################
 
-def display_context(context: dict, timestamp: int) -> None:
-    """Display a context entry with appropriate styling.
+def display_message(item: dict, item_type: str = 'message') -> None:
+    """Display a message or context with appropriate styling.
     
     Args:
-        context (dict): Context data to display
-        timestamp (int): Timestamp when the context was used
+        item (dict): Message or context data to display
+        item_type (str): Type of item ('message' or 'context')
     """
-    st.markdown(f"""
-        <div style="
-            background-color: #f3e5f5;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 10px 0;
-            border-left: 5px solid #9c27b0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        ">
+    if item_type == 'message':
+        role = item.get('role', 'unknown').lower()
+        content = item.get('content', 'No content')
+        timestamp = format_timestamp(item.get('timestamp', 'N/A'))
+        colors = USER_COLORS if role == 'user' else ASSISTANT_COLORS
+        
+        message_html = f"""
             <div style="
-                margin-bottom: 8px;
-                color: #9c27b0;
-                font-weight: 500;
-            ">
-                <strong>🔍 Context Used</strong> • {format_timestamp(timestamp)}
-            </div>
-            <details>
-                <summary style="
-                    color: #9c27b0;
-                    font-weight: 500;
-                    cursor: pointer;
-                    padding: 5px;
-                ">
-                    View Context Data
-                </summary>
+                background-color: {colors['bg_color']};
+                padding: 15px;
+                border-radius: 10px;
+                margin: 10px 0;
+                border-left: 5px solid {colors['border_color']};
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="
-                    color: #6a1b9a;
-                    margin-top: 10px;
-                    padding: 10px;
-                    border-radius: 5px;
-                    background-color: rgba(156, 39, 176, 0.05);
-                ">
-                    {escape_html_preserve_markdown(str(context.get('data', 'No data available')))}
+                    margin-bottom: 8px;
+                    color: {colors['header_color']};
+                    font-weight: 500;">
+                    <strong>{colors['icon']} {role.title()}</strong> • {timestamp}
                 </div>
-            </details>
-        </div>
-    """, unsafe_allow_html=True)
+                <div style="
+                    color: {colors['text_color']};
+                    background-color: {colors['content_bg']};
+                    padding: 10px;
+                    border-radius: 5px;">
+                    {escape_html_preserve_markdown(content)}
+                </div>
+            </div>"""
+        
+        st.markdown(message_html, unsafe_allow_html=True)
+    else:  # context
+        timestamp = format_timestamp(item.get('timestamp', 'N/A'))
+        colors = CONTEXT_COLORS
+        
+        context_html = f"""
+            <div style="
+                background-color: {colors['bg_color']};
+                padding: 15px;
+                border-radius: 10px;
+                margin: 10px 0;
+                border-left: 5px solid {colors['border_color']};
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div style="
+                    margin-bottom: 8px;
+                    color: {colors['header_color']};
+                    font-weight: 500;">
+                    <strong>{colors['icon']} Context Used</strong> • {timestamp}
+                </div>
+                <details>
+                    <summary style="
+                        color: {colors['header_color']};
+                        font-weight: 500;
+                        cursor: pointer;
+                        padding: 5px;">
+                        View Context Data
+                    </summary>
+                    <div style="
+                        color: {colors['text_color']};
+                        margin-top: 10px;
+                        padding: 10px;
+                        border-radius: 5px;
+                        background-color: {colors['content_bg']};">
+                        {escape_html_preserve_markdown(str(item.get('data', 'No data available')))}
+                    </div>
+                </details>
+            </div>"""
+        
+        st.markdown(context_html, unsafe_allow_html=True)
 
 def display_conversation_overview(conversation_details: dict, messages: list):
     """Display conversation overview in columns."""
@@ -299,18 +388,19 @@ def display_formatted_conversation(conversation: dict, contexts: list, messages:
         timeline.sort(key=lambda x: x[1])
         
         # Display items in chronological order
-        for item_type, timestamp, item in timeline:
-            if item_type == 'message':
-                display_message(item)
-            else:
-                display_context(item, timestamp)
+        for item_type, _, item in timeline:
+            display_message(item, item_type)
     else:
         st.warning("No messages found in the conversation")
+
+####################
+# Main Application #
+####################
 
 def main():
     """Main application entry point."""
     st.set_page_config(layout="wide")
-    st.markdown("<h1 style='text-align: center'>🔍 Conversation Analytics Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center'>🔍 Assistant Conversation Visualizer</h1>", unsafe_allow_html=True)
     
     # Center the input form
     _, col2, _ = st.columns([3, 2, 3])
