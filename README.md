@@ -11,9 +11,16 @@ A Streamlit-based dashboard for analyzing conversation data stored in MongoDB. T
     - Message History
   - Formatted View: Provides a beautifully styled conversation interface with:
     - User and Assistant messages clearly distinguished
+    - Context entries integrated into the conversation flow
+    - Expandable context data sections
     - Timestamps in human-readable format
     - Markdown support in messages
-    - Expandable context entries
+
+- **Context Integration**:
+  - Seamless display of context entries within the conversation
+  - Purple-themed context containers with magnifying glass icon
+  - Expandable context data for better readability
+  - Proper chronological ordering with messages
 
 - **Data Handling**:
   - HTML escaping for secure content display
@@ -23,6 +30,7 @@ A Streamlit-based dashboard for analyzing conversation data stored in MongoDB. T
 
 - **User Interface**:
   - Clean, modern design with proper spacing
+  - Color-coded messages and context entries
   - Responsive layout
   - Clear visual hierarchy
   - Emoji support for better readability
@@ -94,10 +102,9 @@ AiAssistantConversationDashboard/
 ├── .env.example       # Example environment variables
 ├── .gitignore        # Git ignore rules
 └── Docs/             # Documentation files
-    ├── context.md
-    ├── conversationDetail.md
-    └── messageHistory.md
-```
+    ├── context.md           # Context data format documentation
+    ├── conversationDetail.md # Conversation structure documentation
+    └── messageHistory.md    # Message format documentation
 
 ## Contributing
 
