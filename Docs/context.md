@@ -1,7 +1,14 @@
 # Unity Context Data Format Documentation
 
 ## Overview
-This documentation describes various context data formats used in Unity for tracking game objects, scripts, project structure, and scene information.
+This documentation describes various context data formats used in Unity for tracking game objects, scripts, project structure, and scene information. Context entries are displayed inline with the conversation, showing when and how context was used during the interaction.
+
+## Display in Conversation
+Context entries appear in the conversation timeline with:
+- Purple-themed container with a magnifying glass icon (🔍)
+- Timestamp showing when the context was used
+- Expandable section containing the context data
+- Chronological ordering with related messages
 
 ## Base Structure
 ```json
@@ -119,4 +126,3 @@ List of GameObjects in the current scene.
 | `m_LocalPosition` | Vector3 | Position in local space |
 | `m_LocalRotation` | Quaternion | Rotation in local space |
 | `m_LocalScale` | Vector3 | Scale in local space |
-

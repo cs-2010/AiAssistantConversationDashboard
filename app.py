@@ -91,14 +91,24 @@ def get_database(database_name: str):
     return client[database_name]
 
 def escape_html_preserve_markdown(text: str) -> str:
-    """Escape HTML while preserving markdown formatting."""
-    try:
-        # Basic HTML escaping
-        escaped = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')\
-                     .replace('"', '&quot;').replace("'", '&#39;')
+    """Escape HTML while preserving markdown formatting.
+    
+    Args:
+        text (str): Text to escape
         
-        # Remove potentially problematic tags
-        escaped = re.sub(r'</div>|<div[^>]*>', '', escaped)
+    Returns:
+        str: Escaped text with preserved markdown
+    """
+    try:
+        # Replace HTML tags with their escaped versions, except for markdown-related tags
+        escaped = text.replace('&', '&amp;')\
+                     .replace('<', '&lt;')\
+                     .replace('>', '&gt;')\
+                     .replace('"', '&quot;')\
+                     .replace("'", '&#39;')
+        
+        # Remove any remaining HTML tags that might break the layout
+        escaped = re.sub(r'</?(div|details|summary)[^>]*>', '', escaped)
         
         return escaped
     except:
@@ -171,6 +181,51 @@ def display_message(msg: dict) -> None:
         unsafe_allow_html=True
     )
 
+def display_context(context: dict, timestamp: int) -> None:
+    """Display a context entry with appropriate styling.
+    
+    Args:
+        context (dict): Context data to display
+        timestamp (int): Timestamp when the context was used
+    """
+    st.markdown(f"""
+        <div style="
+            background-color: #f3e5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 5px solid #9c27b0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        ">
+            <div style="
+                margin-bottom: 8px;
+                color: #9c27b0;
+                font-weight: 500;
+            ">
+                <strong>🔍 Context Used</strong> • {format_timestamp(timestamp)}
+            </div>
+            <details>
+                <summary style="
+                    color: #9c27b0;
+                    font-weight: 500;
+                    cursor: pointer;
+                    padding: 5px;
+                ">
+                    View Context Data
+                </summary>
+                <div style="
+                    color: #6a1b9a;
+                    margin-top: 10px;
+                    padding: 10px;
+                    border-radius: 5px;
+                    background-color: rgba(156, 39, 176, 0.05);
+                ">
+                    {escape_html_preserve_markdown(str(context.get('data', 'No data available')))}
+                </div>
+            </details>
+        </div>
+    """, unsafe_allow_html=True)
+
 def display_conversation_overview(conversation_details: dict, messages: list):
     """Display conversation overview in columns."""
     if not conversation_details:
@@ -228,8 +283,27 @@ def display_formatted_conversation(conversation: dict, contexts: list, messages:
     
     if messages:
         st.subheader("💬 Message History")
+        
+        # Create a dictionary of contexts indexed by their IDs
+        context_dict = {ctx['id']: ctx for ctx in contexts}
+        
+        # Sort messages by timestamp
+        timeline = []
         for msg in messages:
-            display_message(msg)
+            timeline.append(('message', msg.get('timestamp', 0), msg))
+            # If message has context, add it to timeline
+            if msg.get('context_id') and msg.get('context_id') in context_dict:
+                timeline.append(('context', msg.get('timestamp', 0), context_dict[msg.get('context_id')]))
+        
+        # Sort timeline by timestamp
+        timeline.sort(key=lambda x: x[1])
+        
+        # Display items in chronological order
+        for item_type, timestamp, item in timeline:
+            if item_type == 'message':
+                display_message(item)
+            else:
+                display_context(item, timestamp)
     else:
         st.warning("No messages found in the conversation")
 
