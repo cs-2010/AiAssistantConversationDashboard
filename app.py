@@ -246,6 +246,32 @@ def get_unity_topics_widget(topics: list) -> str:
     
     return f'<span style="margin: 0 5px;">🎮 {" ".join(topics_html)}</span>'
 
+def get_external_knowledge_widget(classification: dict) -> str:
+    """Generate HTML for external knowledge widget with tooltip.
+    
+    Args:
+        classification (dict): Classification data containing external_knowledge
+        
+    Returns:
+        str: HTML string for external knowledge widget
+    """
+    knowledge_level = classification.get('external_knowledge', 'none')
+    knowledge_emojis = {
+        'none': '📝',
+        'intermediate': '📚',
+        'advanced': '🎓'
+    }
+    emoji = knowledge_emojis.get(knowledge_level, knowledge_emojis['none'])
+    
+    descriptions = {
+        'none': 'No external Unity documentation required',
+        'intermediate': 'Moderately complex query requiring intermediate-level Unity documentation',
+        'advanced': 'Complex query requiring advanced-level Unity documentation'
+    }
+    description = descriptions.get(knowledge_level, descriptions['none'])
+    
+    return f'<span title="{description}" style="margin: 0 5px; cursor: help;">{emoji} {knowledge_level}</span>'
+
 def display_message(item: dict, item_type: str = 'message') -> None:
     """Display a message or context with appropriate styling.
     
@@ -259,23 +285,23 @@ def display_message(item: dict, item_type: str = 'message') -> None:
         timestamp = format_timestamp(item.get('timestamp', 'N/A'))
         colors = USER_COLORS if role == 'user' else ASSISTANT_COLORS
         
-        # Get sentiment and Unity topics from front_desk_classification_results
-        sentiment = 'neutral'
-        unity_topics = []
-        if classification := item.get('front_desk_classification_results', {}):
-            sentiment = classification.get('sentiment', 'neutral').lower()
-            unity_topics = classification.get('unity_topics', [])
+        # Get sentiment, Unity topics, and external knowledge from front_desk_classification_results
+        classification = item.get('front_desk_classification_results', {})
+        sentiment = classification.get('sentiment', 'neutral').lower()
+        unity_topics = classification.get('unity_topics', [])
         
         sentiment_widget = get_sentiment_widget(sentiment)
         unity_topics_widget = get_unity_topics_widget(unity_topics)
+        external_knowledge_widget = get_external_knowledge_widget(classification)
         
-        # Create header elements with vertical separator
+        # Create header elements with vertical separator and proper spacing
         header_elements = [
             f"<strong>{colors['icon']} {role.title()}</strong>",
             f"{sentiment_widget}{unity_topics_widget}",
+            external_knowledge_widget,
             timestamp
         ]
-        header_html = " | ".join(element for element in header_elements if element.strip())
+        header_html = " | ".join(element for element in header_elements if element.strip()) + " "  # Added space after the last separator
         
         message_html = f"""
             <div style="
@@ -359,16 +385,36 @@ def display_conversation_overview(conversation_details: dict, messages: list):
                 st.write(f"{field.capitalize()}:", format_timestamp(value))
 
     with col2:
-        st.subheader("📊 Statistics")
+        st.subheader("📊 Message Statistics")
         if messages:
+            # Message counts by role
             role_counts = {}
+            sentiment_counts = {'positive': 0, 'neutral': 0, 'negative': 0}
+            complexity_counts = {'none': 0, 'intermediate': 0, 'advanced': 0}
+        
             for msg in messages:
+                # Count by role
                 role = msg.get('role', 'unknown').lower()
                 role_counts[role] = role_counts.get(role, 0) + 1
+                
+                # Only count sentiment and complexity for user messages
+                if role == 'user':
+                    classification = msg.get('front_desk_classification_results', {})
+                    sentiment = classification.get('sentiment', 'neutral').lower()
+                    sentiment_counts[sentiment] = sentiment_counts.get(sentiment, 0) + 1
+                    
+                    knowledge_level = classification.get('external_knowledge', 'none')
+                    complexity_counts[knowledge_level] = complexity_counts.get(knowledge_level, 0) + 1
+        
+            # Display message counts in a compact format
+            st.write(f"Total: {len(messages)} | User: {role_counts.get('user', 0)} | Assistant: {role_counts.get('assistant', 0)} | Other: {sum(role_counts.values()) - role_counts.get('user', 0) - role_counts.get('assistant', 0)}")
             
-            st.metric("Total Messages", len(messages))
-            st.metric("User Messages", role_counts.get('user', 0))
-            st.metric("Assistant Messages", role_counts.get('assistant', 0))
+            # Display sentiment analysis
+            st.write(f"Sentiment: 😊 Positive: {sentiment_counts['positive']} | 😐 Neutral: {sentiment_counts['neutral']} | 😔 Negative: {sentiment_counts['negative']}")
+            
+            # Display complexity analysis
+            st.write(f"Complexity: 📝 Basic: {complexity_counts['none']} | 📚 Intermediate: {complexity_counts['intermediate']} | 🎓 Advanced: {complexity_counts['advanced']}")
+            
         else:
             st.write("No messages found")
 
