@@ -1,4 +1,3 @@
-# Standard library imports
 import os
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +16,24 @@ import re
 # Constants
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 DEFAULT_MONGO_TIMEOUT = 30000
+
+# Language flags mapping
+LANGUAGE_FLAGS = {
+    'arabic': '🇸🇦',
+    'chinese': '🇨🇳',
+    'dutch': '🇳🇱',
+    'english': '🇬🇧',
+    'french': '🇫🇷',
+    'german': '🇩🇪',
+    'italian': '🇮🇹',
+    'japanese': '🇯🇵',
+    'korean': '🇰🇷',
+    'portuguese': '🇵🇹',
+    'russian': '🇷🇺',
+    'spanish': '🇪🇸',
+    'turkish': '🇹🇷',
+    'unknown': '❓'
+}
 
 # Color schemes for messages
 USER_COLORS = {
@@ -133,16 +150,7 @@ def escape_html_preserve_markdown(text: str) -> str:
                 code_content = block[3:-3].strip()  # Remove ``` and trim
                 language = code_content.split('\n')[0] if code_content else ''
                 code = code_content[len(language):].strip() if language else code_content
-                return f'''<div style="
-                    background-color: {CODE_BLOCK_STYLE['bg_color']};
-                    border: 1px solid {CODE_BLOCK_STYLE['border_color']};
-                    border-radius: 4px;
-                    margin: 8px 0;
-                    padding: 8px 12px;
-                    font-family: monospace;
-                    white-space: pre-wrap;
-                    color: {CODE_BLOCK_STYLE['text_color']};
-                "><code class="language-{language}">{html.escape(code)}</code></div>'''
+                return f'''<div style="background-color: {CODE_BLOCK_STYLE['bg_color']}; border: 1px solid {CODE_BLOCK_STYLE['border_color']}; border-radius: 4px; margin: 8px 0; padding: 8px 12px; font-family: monospace; white-space: pre-wrap; color: {CODE_BLOCK_STYLE['text_color']};"><code class="language-{language}">{html.escape(code)}</code></div>'''
             else:
                 # Inline code
                 code = block[1:-1]  # Remove backticks
@@ -242,9 +250,9 @@ def get_unity_topics_widget(topics: list) -> str:
     
     topics_html = []
     for topic in topics:
-        topics_html.append(f'<span style="background-color: #e0e0e0; padding: 2px 6px; border-radius: 12px; margin: 0 2px; font-size: 0.8em;">{topic}</span>')
+        topics_html.append(f'<span style="background-color: #4a4a4a; color: white; padding: 3px 10px; border-radius: 15px; margin: 0 3px; font-size: 0.85em; display: inline-block;">{topic}</span>')
     
-    return f'<span style="margin: 0 5px;">🎮 {" ".join(topics_html)}</span>'
+    return f'<div style="display: flex; flex-wrap: wrap; gap: 5px; margin: 0 5px;">🎮 {" ".join(topics_html)}</div>'
 
 def get_external_knowledge_widget(classification: dict) -> str:
     """Generate HTML for external knowledge widget with tooltip.
@@ -303,66 +311,14 @@ def display_message(item: dict, item_type: str = 'message') -> None:
         ]
         header_html = " | ".join(element for element in header_elements if element.strip()) + " "  # Added space after the last separator
         
-        message_html = f"""
-            <div style="
-                background-color: {colors['bg_color']};
-                padding: 15px;
-                border-radius: 10px;
-                margin: 10px 0;
-                border-left: 5px solid {colors['border_color']};
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div style="
-                    margin-bottom: 8px;
-                    color: {colors['header_color']};
-                    font-weight: 500;">
-                    {header_html}
-                </div>
-                <div style="
-                    color: {colors['text_color']};
-                    background-color: {colors['content_bg']};
-                    padding: 10px;
-                    border-radius: 5px;">
-                    {escape_html_preserve_markdown(content)}
-                </div>
-            </div>"""
+        message_html = f"""<div style="background-color: {colors['bg_color']}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {colors['border_color']}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><div style="margin-bottom: 8px; color: {colors['header_color']}; font-weight: 500;">{header_html}</div><div style="color: {colors['text_color']}; background-color: {colors['content_bg']}; padding: 10px; border-radius: 5px;">{escape_html_preserve_markdown(content)}</div></div>"""
         
         st.markdown(message_html, unsafe_allow_html=True)
     else:  # context
         timestamp = format_timestamp(item.get('timestamp', 'N/A'))
         colors = CONTEXT_COLORS
         
-        context_html = f"""
-            <div style="
-                background-color: {colors['bg_color']};
-                padding: 15px;
-                border-radius: 10px;
-                margin: 10px 0;
-                border-left: 5px solid {colors['border_color']};
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div style="
-                    margin-bottom: 8px;
-                    color: {colors['header_color']};
-                    font-weight: 500;">
-                    <strong>{colors['icon']} Context Used</strong> | {timestamp}
-                </div>
-                <details>
-                    <summary style="
-                        color: {colors['header_color']};
-                        font-weight: 500;
-                        cursor: pointer;
-                        padding: 5px;">
-                        View Context Data
-                    </summary>
-                    <div style="
-                        color: {colors['text_color']};
-                        margin-top: 10px;
-                        padding: 10px;
-                        border-radius: 5px;
-                        background-color: {colors['content_bg']};">
-                        {escape_html_preserve_markdown(str(item.get('data', 'No data available')))}
-                    </div>
-                </details>
-            </div>"""
+        context_html = f"""<div style="background-color: {colors['bg_color']}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {colors['border_color']}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><div style="margin-bottom: 8px; color: {colors['header_color']}; font-weight: 500;"><strong>{colors['icon']} Context Used</strong> | {timestamp}</div><details><summary style="color: {colors['header_color']}; font-weight: 500; cursor: pointer; padding: 5px;">View Context Data</summary><div style="color: {colors['text_color']}; margin-top: 10px; padding: 10px; border-radius: 5px; background-color: {colors['content_bg']};">{escape_html_preserve_markdown(str(item.get('data', 'No data available')))}</div></details></div>"""
         
         st.markdown(context_html, unsafe_allow_html=True)
 
@@ -431,11 +387,23 @@ def display_conversation_overview(conversation_details: dict, messages: list):
             st.write(f"{status}:", "✅" if (value and check(value)) else "❌")
 
         # Display classification data
-        if class_data := first_msg.get('front_desk_classification_results', {}):
-            if lang := class_data.get('user_language'):
-                st.write("Language:", lang)
-            if topics := class_data.get('unity_topics'):
-                st.write("Topics:", ", ".join(topics))
+        if messages:
+            # Get language from first message
+            if class_data := first_msg.get('front_desk_classification_results', {}):
+                if lang := class_data.get('user_language'):
+                    # Get flag emoji for the language
+                    flag = LANGUAGE_FLAGS.get(lang.lower(), LANGUAGE_FLAGS['unknown'])
+                    st.write("Language:", f"{flag} {lang}")
+            
+            # Collect all unique topics from all messages
+            all_topics = set()
+            for msg in messages:
+                if class_data := msg.get('front_desk_classification_results', {}):
+                    if topics := class_data.get('unity_topics'):
+                        all_topics.update(topics)
+            
+            if all_topics:
+                st.write("Topics:", " ".join(sorted(all_topics)))
 
 def display_formatted_conversation(conversation: dict, contexts: list, messages: list) -> None:
     """Display conversation data in a formatted, user-friendly way."""
