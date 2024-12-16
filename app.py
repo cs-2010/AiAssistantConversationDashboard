@@ -18,34 +18,6 @@ import re
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 DEFAULT_MONGO_TIMEOUT = 30000
 
-# Message templates for consistent styling
-MESSAGE_TEMPLATE = """
-    <div style="
-        background-color: {bg_color};
-        padding: 15px;
-        border-radius: 10px;
-        margin: 10px 0;
-        border-left: 5px solid {border_color};
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    ">
-        <div style="
-            margin-bottom: 8px;
-            color: {header_color};
-            font-weight: 500;
-        ">
-            <strong>{icon} {role}</strong> • {timestamp}
-        </div>
-        <div style="
-            color: {text_color};
-            background-color: {content_bg};
-            padding: 10px;
-            border-radius: 5px;
-        ">
-            {content}
-        </div>
-    </div>
-"""
-
 # Color schemes for messages
 USER_COLORS = {
     'bg_color': '#e3f2fd',
@@ -239,6 +211,41 @@ def fetch_conversation_data(conversation_id: str) -> tuple:
 # Display Helper Functions #
 #############################
 
+def get_sentiment_widget(sentiment: str) -> str:
+    """Generate HTML for sentiment indicator widget using emojis.
+    
+    Args:
+        sentiment (str): Sentiment value ('positive', 'neutral', or 'negative')
+        
+    Returns:
+        str: HTML string for sentiment widget
+    """
+    sentiment_emojis = {
+        'positive': '😊',
+        'neutral': '😐',
+        'negative': '😔'
+    }
+    emoji = sentiment_emojis.get(sentiment, sentiment_emojis['neutral'])
+    return f'<span style="margin: 0 5px;">{emoji}</span>'
+
+def get_unity_topics_widget(topics: list) -> str:
+    """Generate HTML for Unity topics widget.
+    
+    Args:
+        topics (list): List of Unity topics
+        
+    Returns:
+        str: HTML string for Unity topics widget
+    """
+    if not topics:
+        return ''
+    
+    topics_html = []
+    for topic in topics:
+        topics_html.append(f'<span style="background-color: #e0e0e0; padding: 2px 6px; border-radius: 12px; margin: 0 2px; font-size: 0.8em;">{topic}</span>')
+    
+    return f'<span style="margin: 0 5px;">🎮 {" ".join(topics_html)}</span>'
+
 def display_message(item: dict, item_type: str = 'message') -> None:
     """Display a message or context with appropriate styling.
     
@@ -252,6 +259,24 @@ def display_message(item: dict, item_type: str = 'message') -> None:
         timestamp = format_timestamp(item.get('timestamp', 'N/A'))
         colors = USER_COLORS if role == 'user' else ASSISTANT_COLORS
         
+        # Get sentiment and Unity topics from front_desk_classification_results
+        sentiment = 'neutral'
+        unity_topics = []
+        if classification := item.get('front_desk_classification_results', {}):
+            sentiment = classification.get('sentiment', 'neutral').lower()
+            unity_topics = classification.get('unity_topics', [])
+        
+        sentiment_widget = get_sentiment_widget(sentiment)
+        unity_topics_widget = get_unity_topics_widget(unity_topics)
+        
+        # Create header elements with vertical separator
+        header_elements = [
+            f"<strong>{colors['icon']} {role.title()}</strong>",
+            f"{sentiment_widget}{unity_topics_widget}",
+            timestamp
+        ]
+        header_html = " | ".join(element for element in header_elements if element.strip())
+        
         message_html = f"""
             <div style="
                 background-color: {colors['bg_color']};
@@ -264,7 +289,7 @@ def display_message(item: dict, item_type: str = 'message') -> None:
                     margin-bottom: 8px;
                     color: {colors['header_color']};
                     font-weight: 500;">
-                    <strong>{colors['icon']} {role.title()}</strong> • {timestamp}
+                    {header_html}
                 </div>
                 <div style="
                     color: {colors['text_color']};
@@ -292,7 +317,7 @@ def display_message(item: dict, item_type: str = 'message') -> None:
                     margin-bottom: 8px;
                     color: {colors['header_color']};
                     font-weight: 500;">
-                    <strong>{colors['icon']} Context Used</strong> • {timestamp}
+                    <strong>{colors['icon']} Context Used</strong> | {timestamp}
                 </div>
                 <details>
                     <summary style="
