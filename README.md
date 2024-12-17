@@ -5,11 +5,11 @@ A Streamlit-based dashboard for analyzing conversation data stored in MongoDB. T
 ## Features
 
 - **Dual View Interface**:
-  - Raw Data View: Displays conversation data in a three-column layout
+  - **Raw Data View**: Displays conversation data in a three-column layout, showing:
     - Conversation Details
     - Context Entries
     - Message History
-  - Formatted View: Provides a beautifully styled conversation interface with:
+  - **Formatted View**: Provides a styled conversation interface with:
     - User and Assistant messages clearly distinguished
     - Context entries integrated into the conversation flow
     - Expandable context data sections
@@ -74,7 +74,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 2. Run the Streamlit application:
 ```bash
-streamlit run app.py
+streamlit run src/app.py
 ```
 
 3. Open your browser and navigate to the URL shown in the terminal (typically http://localhost:8501)
@@ -97,7 +97,13 @@ streamlit run app.py
 
 ```
 AiAssistantConversationDashboard/
-├── app.py              # Main application file
+├── src/
+│   ├── app.py          # Main application file
+│   ├── database.py     # Database connection and operations
+│   ├── display.py      # UI components and display functions
+│   ├── utils.py        # Helper functions
+│   ├── styles.py       # Style constants
+│   └── __init__.py
 ├── requirements.txt    # Python dependencies
 ├── .env.example       # Example environment variables
 ├── .gitignore        # Git ignore rules
