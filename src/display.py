@@ -3,11 +3,11 @@ Display components and UI functions for the AI Assistant Conversation Dashboard.
 """
 
 import streamlit as st
-from .styles import (
+from src.styles import (
     USER_COLORS, ASSISTANT_COLORS, CONTEXT_COLORS,
     TOPIC_CAPSULE_STYLE, CODE_BLOCK_STYLE, LANGUAGE_FLAGS
 )
-from .utils import escape_html_preserve_markdown, format_timestamp
+from src.utils import escape_html_preserve_markdown, format_timestamp
 
 def get_sentiment_widget(sentiment: str) -> str:
     """Generate HTML for sentiment indicator widget using emojis.

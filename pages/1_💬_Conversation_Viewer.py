@@ -3,13 +3,18 @@ Main application file for the AI Assistant Conversation Dashboard.
 """
 
 import streamlit as st
-from .database import fetch_conversation_data
-from .display import display_formatted_conversation
+from src.database import fetch_conversation_data
+from src.display import display_formatted_conversation
+
+st.set_page_config(
+    page_title="Conversation Viewer",
+    page_icon="💬",
+    layout="wide"
+)
 
 def main():
     """Main application entry point."""
-    st.set_page_config(layout="wide")
-    st.markdown("<h1 style='text-align: center'>🔍 Assistant Conversation Visualizer</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center'>💬 Conversation Viewer</h1>", unsafe_allow_html=True)
     
     # Center the input form
     _, col2, _ = st.columns([3, 2, 3])
