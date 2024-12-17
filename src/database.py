@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 from pymongo import MongoClient
 from dotenv import load_dotenv
-import streamlit as st
 
 # Constants
 DEFAULT_MONGO_TIMEOUT = 30000
@@ -14,8 +13,10 @@ _mongo_client = None
 
 def get_mongodb_uri() -> str:
     """Retrieve MongoDB URI from environment variables."""
+    # Load environment variables from .env file
     env_path = Path(__file__).parent.parent / '.env'
     load_dotenv(dotenv_path=env_path)
+    # Get the MongoDB URI from the environment variables
     uri = os.getenv("MONGO_URI")
     if not uri:
         raise ValueError("MONGO_URI environment variable is not set. Please check your .env file.")
@@ -25,11 +26,14 @@ def initialize_mongodb():
     """Initialize MongoDB connection."""
     global _mongo_client
     
+    # If a client already exists, return it
     if _mongo_client is not None:
         return _mongo_client
         
     try:
+        # Get the MongoDB URI
         MONGO_URI = get_mongodb_uri()
+        # Create a new MongoDB client
         _mongo_client = MongoClient(
             MONGO_URI,
             connectTimeoutMS=DEFAULT_MONGO_TIMEOUT,
@@ -39,7 +43,7 @@ def initialize_mongodb():
             retryWrites=True,
             tls=True,
         )
-        # Test connection
+        # Test the connection
         _mongo_client.admin.command('ping')
         return _mongo_client
     except Exception as e:
@@ -48,16 +52,20 @@ def initialize_mongodb():
 def get_database(database_name: str):
     """Get a MongoDB database instance."""
     global _mongo_client
+    # If a client doesn't exist, initialize it
     if _mongo_client is None:
         _mongo_client = initialize_mongodb()
+    # Return the database instance
     return _mongo_client[database_name]
 
 def fetch_conversation_data(conversation_id: str) -> tuple:
     """Fetch conversation data from MongoDB."""
     try:
+        # Validate conversation ID
         if not isinstance(conversation_id, str):
             raise ValueError(f"Invalid conversation ID: {conversation_id}. Please provide a single conversation ID as a string.")
         
+        # Get database instances
         app_db = get_database("muse-application")
         feedback_db = get_database("muse-assistant-feedback")
         
@@ -67,8 +75,6 @@ def fetch_conversation_data(conversation_id: str) -> tuple:
         })
         
         if not conversation_details:
-            st.warning(f"Debug: Could not find conversation with id: {conversation_id}")
-            st.warning(f"Available collections: {', '.join(app_db.list_collection_names())}")
             return None, None, None, None
         
         # Get analytics data
@@ -92,5 +98,65 @@ def fetch_conversation_data(conversation_id: str) -> tuple:
         return conversation_details, analytics_data, context_entries, messages
         
     except Exception as e:
-        st.error(f"Error: {str(e)}")
         return None, None, None, None
+
+def search_conversations(search_pattern: str):
+    """
+    Search for conversations where the title matches the given pattern.
+    Returns a list of conversations with their basic information.
+    """
+    try:
+        # Initialize MongoDB client
+        client = initialize_mongodb()
+        # Get the database instance
+        db = client.get_database("muse-application")
+        # Get the conversations collection
+        collection = db["conversations"]
+        
+        # Create a regex pattern for the search
+        pattern = {"$regex": f".*{search_pattern}.*", "$options": "i"}
+        # Create a query to find conversations with matching titles
+        query = {"title": pattern}
+        # Execute the query
+        cursor = collection.find(query)
+        
+        results = []
+        # Iterate through the results
+        for conv in cursor:
+            try:
+                # Safely get history with fallback to empty list
+                history = conv.get("history", []) or []
+                
+                # Safely get first and last messages
+                first_msg = history[0] if history else {}
+                last_msg = history[-1] if history else {}
+                
+                # Safely get message content with fallback to empty string
+                first_msg_content = first_msg.get("content", "") if isinstance(first_msg, dict) else ""
+                last_msg_content = last_msg.get("content", "") if isinstance(last_msg, dict) else ""
+                
+                # Get available function names with error handling
+                function_catalog = conv.get("function_catalog", []) or []
+                functions = [f.get("name", "") for f in function_catalog if isinstance(f, dict)]
+                
+                # Create a result dictionary
+                result = {
+                    "id": conv.get("id", str(conv["_id"])),
+                    "name": conv.get("title", "Unnamed"),
+                    "message_count": len(history),
+                    "is_favorite": conv.get("is_favorite", False),
+                    "tags": conv.get("tags", []) or [],
+                    "owners": conv.get("owners", []) or [],
+                    "first_message": first_msg_content[:100] + "..." if first_msg_content else "No content",
+                    "last_message": last_msg_content[:100] + "..." if last_msg_content else "No content",
+                    "created_at": first_msg.get("timestamp") if isinstance(first_msg, dict) else None,
+                    "updated_at": last_msg.get("timestamp") if isinstance(last_msg, dict) else None,
+                    "available_functions": ", ".join(functions) if functions else "None"
+                }
+                results.append(result)
+            except Exception as e:
+                continue
+        
+        return results
+    except Exception as e:
+        return []
