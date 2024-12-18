@@ -34,22 +34,41 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Search interface
-col1, col2 = st.columns([4, 1])
-with col1:
-    search_query = st.text_input("Search conversations by title", placeholder="Enter search term (e.g., 'flappy')")
-with col2:
-    search_button = st.button("🔍 Search", use_container_width=True)
+with st.form("search_form"):
+    col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
+    with col1:
+        search_query = st.text_input("Search conversations by title", placeholder="Enter search term (e.g., 'flappy')")
+    with col2:
+        min_messages = st.number_input(label="Min messages", min_value=0, value=0, step=1)
+    with col3:
+        max_messages = st.number_input(label="Max messages", min_value=0, value=0, step=1)
+    with col4:
+        start_date = st.date_input(label="Start Date")
+    with col5:
+        end_date = st.date_input(label="End Date")
+    
+    search_button = st.form_submit_button("🔍 Search", use_container_width=True)
 
-if search_button and search_query:
+if 'skip' not in st.session_state:
+    st.session_state.skip = 0
+if 'all_results' not in st.session_state:
+    st.session_state.all_results = []
+
+if search_button:
+    st.session_state.skip = 0
+    st.session_state.all_results = []
+
+if search_button or st.session_state.all_results:
     # Perform search
-    results = search_conversations(search_query)
+    results = search_conversations(search_query, min_messages, max_messages, limit=1000, skip=st.session_state.skip, start_date=start_date, end_date=end_date)
     
     if results:
-        st.write(f"Found {len(results)} conversations")
+        st.session_state.all_results.extend(results)
+        st.write(f"Found {len(st.session_state.all_results)} conversations")
         
         # Convert data for dataframe display
         table_data = []
-        for conv in results:
+        for conv in st.session_state.all_results:
             table_data.append({
                 "ID": conv["id"],
                 "Title": conv["name"],
@@ -114,7 +133,10 @@ if search_button and search_query:
                 "Created", "Updated", "Owners"
             ],
         )
+        
+        if len(results) == 1000:
+            if st.button("Load More", use_container_width=True):
+                st.session_state.skip += 1000
+                st.rerun()
     else:
         st.info("No conversations found matching your search.")
-elif search_button:
-    st.warning("Please enter a search term.")

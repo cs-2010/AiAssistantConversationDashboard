@@ -18,6 +18,9 @@ A Streamlit-based dashboard for analyzing conversation data stored in MongoDB. T
 
 - **Database Query**:
   - Search conversations by title
+  - Advanced filtering options:
+    - Message count range (min/max messages)
+    - Date range (start/end dates)
   - Display results in a clear, tabular format showing:
     - Conversation ID
     - Title
@@ -25,6 +28,7 @@ A Streamlit-based dashboard for analyzing conversation data stored in MongoDB. T
     - First and last messages
     - Creation and update timestamps
     - Conversation owners
+  - Pagination support with "Load More" functionality
 
 - **Context Integration**:
   - Seamless display of context entries within the conversation
@@ -37,6 +41,14 @@ A Streamlit-based dashboard for analyzing conversation data stored in MongoDB. T
   - Markdown preservation in formatted messages
   - Proper handling of code blocks and inline code
   - Unix timestamp conversion to readable dates
+
+- **Message Display**:
+  - Enhanced system message formatting with boundary markers
+  - Proper handling of embedded metadata and references
+  - Footnote support with inline citations
+  - Sentiment analysis indicators
+  - Topic classification display
+  - Message statistics
 
 - **User Interface**:
   - Clean, modern design with proper spacing

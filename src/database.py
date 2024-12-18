@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Constants
 DEFAULT_MONGO_TIMEOUT = 30000
@@ -100,9 +101,10 @@ def fetch_conversation_data(conversation_id: str) -> tuple:
     except Exception as e:
         return None, None, None, None
 
-def search_conversations(search_pattern: str):
+def search_conversations(search_pattern: str, min_messages: int = 0, max_messages: int = 0, limit: int = 1000, skip: int = 0, start_date = None, end_date = None):
     """
-    Search for conversations where the title matches the given pattern.
+    Search for conversations where the title matches the given pattern,
+    and optionally filter by the number of messages.
     Returns a list of conversations with their basic information.
     """
     try:
@@ -113,12 +115,34 @@ def search_conversations(search_pattern: str):
         # Get the conversations collection
         collection = db["conversations"]
         
-        # Create a regex pattern for the search
-        pattern = {"$regex": f".*{search_pattern}.*", "$options": "i"}
         # Create a query to find conversations with matching titles
-        query = {"title": pattern}
+        query = {}
+        if search_pattern:
+            pattern = {"$regex": f".*{search_pattern}.*", "$options": "i"}
+            query["title"] = pattern
+        
+        if min_messages > 0 or max_messages > 0:
+            query["$where"] = ""
+            if min_messages > 0 and max_messages > 0:
+                query["$where"] = f"this.history && this.history.length >= {min_messages} && this.history.length <= {max_messages}"
+            elif min_messages > 0:
+                query["$where"] = f"this.history && this.history.length >= {min_messages}"
+            elif max_messages > 0 :
+                query["$where"] = f"this.history && this.history.length <= {max_messages}"
+        
+        if start_date and end_date:
+            start_of_day = datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0)
+            end_of_day = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59)
+            query["history.0.timestamp"] = {"$gte": int(start_of_day.timestamp() * 1000), "$lte": int(end_of_day.timestamp() * 1000)}
+        elif start_date:
+            start_of_day = datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0)
+            query["history.0.timestamp"] = {"$gte": int(start_of_day.timestamp() * 1000)}
+        elif end_date:
+            end_of_day = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59)
+            query["history.0.timestamp"] = {"$lte": int(end_of_day.timestamp() * 1000)}
+        
         # Execute the query
-        cursor = collection.find(query)
+        cursor = collection.find(query).skip(skip).limit(limit)
         
         results = []
         # Iterate through the results
@@ -153,6 +177,7 @@ def search_conversations(search_pattern: str):
                     "updated_at": last_msg.get("timestamp") if isinstance(last_msg, dict) else None,
                     "available_functions": ", ".join(functions) if functions else "None"
                 }
+                
                 results.append(result)
             except Exception as e:
                 continue
