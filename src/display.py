@@ -86,7 +86,70 @@ def format_system_message(content: str) -> str:
                 continue
         else:
             # This is a text block
-            formatted_parts.append(f'<div style="margin: 8px 0;">{part}</div>')
+            # Clean up whitespace while preserving intentional line breaks
+            lines = [line.strip() for line in part.split('\n')]
+            # Remove empty lines at the start and end
+            while lines and not lines[0]:
+                lines.pop(0)
+            while lines and not lines[-1]:
+                lines.pop()
+                
+            # Join non-empty lines with appropriate spacing
+            cleaned_text = ''
+            current_block = []
+            in_code_block = False
+            
+            for j, line in enumerate(lines):
+                if line.startswith('```'):
+                    if in_code_block:
+                        # End of code block
+                        current_block.append(line)
+                        cleaned_text += escape_html_preserve_markdown('\n'.join(current_block))
+                        current_block = []
+                        in_code_block = False
+                    else:
+                        # Start of code block
+                        if cleaned_text:
+                            # Close any open paragraph before the code block
+                            if not cleaned_text.endswith('</p>'):
+                                cleaned_text += '</p>'
+                        current_block.append(line)
+                        in_code_block = True
+                elif in_code_block:
+                    current_block.append(line)
+                else:
+                    if not line:  # Empty line indicates paragraph break
+                        if current_block:
+                            if cleaned_text and not cleaned_text.endswith('</p>'):
+                                cleaned_text += '</p>'
+                            cleaned_text += '<p>' + escape_html_preserve_markdown(' '.join(current_block))
+                            current_block = []
+                        if j > 0 and j < len(lines) - 1:  # Don't add breaks at start or end
+                            cleaned_text += '</p><p>'
+                    else:
+                        current_block.append(line)
+            
+            # Handle any remaining text
+            if current_block:
+                if in_code_block:
+                    cleaned_text += escape_html_preserve_markdown('\n'.join(current_block))
+                else:
+                    if cleaned_text and not cleaned_text.endswith('</p>'):
+                        cleaned_text += '</p>'
+                    cleaned_text += '<p>' + escape_html_preserve_markdown(' '.join(current_block))
+            
+            if cleaned_text:
+                # Ensure the text starts and ends with paragraph tags
+                if not cleaned_text.startswith('<p>'):
+                    cleaned_text = '<p>' + cleaned_text
+                if not cleaned_text.endswith('</p>'):
+                    cleaned_text += '</p>'
+                    
+                formatted_parts.append(
+                    f'<div style="margin: 8px 0;">'
+                    f'{cleaned_text}'
+                    f'</div>'
+                )
     
     return "\n".join(formatted_parts)
 
