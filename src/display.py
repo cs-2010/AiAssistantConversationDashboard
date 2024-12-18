@@ -76,19 +76,18 @@ def format_system_message(content: str) -> str:
                 reason = metadata.get("reason", "N/A")
                 
                 formatted_parts.append(
-                    f'<div style="margin: 8px 0; padding: 8px; background-color: #f8f9fa; border-left: 3px solid #6c757d; font-size: 0.9em; color: #666;">'
+                    f'<div style="margin: 4px 0; padding: 6px; background-color: #f8f9fa; border-left: 3px solid #6c757d; font-size: 0.9em; color: #666;">'
                     f'📚 <strong>Source:</strong> {source}<br>'
                     f'💡 <strong>Context:</strong> {reason}'
                     f'</div>'
                 )
             except json.JSONDecodeError:
-                # If JSON parsing fails, skip this part
                 continue
         else:
             # This is a text block
             # Clean up whitespace while preserving intentional line breaks
             lines = [line.strip() for line in part.split('\n')]
-            # Remove empty lines at the start and end
+            # Remove empty lines at start and end
             while lines and not lines[0]:
                 lines.pop(0)
             while lines and not lines[-1]:
@@ -109,23 +108,30 @@ def format_system_message(content: str) -> str:
                         in_code_block = False
                     else:
                         # Start of code block
-                        if cleaned_text:
-                            # Close any open paragraph before the code block
-                            if not cleaned_text.endswith('</p>'):
-                                cleaned_text += '</p>'
+                        if current_block:
+                            cleaned_text += escape_html_preserve_markdown(' '.join(current_block))
+                            current_block = []
                         current_block.append(line)
                         in_code_block = True
                 elif in_code_block:
                     current_block.append(line)
                 else:
-                    if not line:  # Empty line indicates paragraph break
+                    # Check if line starts with a list marker or heading
+                    is_list_or_heading = bool(re.match(r'^[#*\-\d]+[.)\s]', line))
+                    
+                    if not line:  # Empty line indicates section break
                         if current_block:
                             if cleaned_text and not cleaned_text.endswith('</p>'):
-                                cleaned_text += '</p>'
-                            cleaned_text += '<p>' + escape_html_preserve_markdown(' '.join(current_block))
+                                cleaned_text += escape_html_preserve_markdown(' '.join(current_block))
                             current_block = []
                         if j > 0 and j < len(lines) - 1:  # Don't add breaks at start or end
-                            cleaned_text += '</p><p>'
+                            cleaned_text += '<br>'
+                    elif is_list_or_heading:
+                        if current_block:
+                            cleaned_text += escape_html_preserve_markdown(' '.join(current_block))
+                            current_block = []
+                            cleaned_text += '<br>'
+                        current_block.append(line)
                     else:
                         current_block.append(line)
             
@@ -134,21 +140,11 @@ def format_system_message(content: str) -> str:
                 if in_code_block:
                     cleaned_text += escape_html_preserve_markdown('\n'.join(current_block))
                 else:
-                    if cleaned_text and not cleaned_text.endswith('</p>'):
-                        cleaned_text += '</p>'
-                    cleaned_text += '<p>' + escape_html_preserve_markdown(' '.join(current_block))
+                    cleaned_text += escape_html_preserve_markdown(' '.join(current_block))
             
             if cleaned_text:
-                # Ensure the text starts and ends with paragraph tags
-                if not cleaned_text.startswith('<p>'):
-                    cleaned_text = '<p>' + cleaned_text
-                if not cleaned_text.endswith('</p>'):
-                    cleaned_text += '</p>'
-                    
                 formatted_parts.append(
-                    f'<div style="margin: 8px 0;">'
-                    f'{cleaned_text}'
-                    f'</div>'
+                    f'<div style="margin: 4px 0;">{cleaned_text}</div>'
                 )
     
     return "\n".join(formatted_parts)
@@ -224,11 +220,65 @@ def display_message(item: dict, item_type: str = 'message') -> None:
         # Create single-line header with all elements
         header_html = f"{colors['icon']} {role.title()} | {sentiment_widget} {unity_topics_widget} | {external_knowledge_widget} | {timestamp}"
         
-        message_html = f"""<div style="background-color: {colors['bg_color']}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {colors['border_color']}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="margin-bottom: 8px; color: {colors['header_color']}; font-weight: 500;">{header_html}</div>
-            <div style="color: {colors['text_color']}; background-color: {colors['content_bg']}; padding: 10px; border-radius: 5px; white-space: pre-wrap;">{escape_html_preserve_markdown(content)}</div>
-        </div>"""
+        # Wrap the markdown content in a styled div
+        message_html = f"""
+        <div style="background-color: {colors['bg_color']}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {colors['border_color']}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="margin-bottom: 8px; color: {colors['header_color']}; font-weight: 500;">
+                {header_html}
+            </div>
+            <div style="color: {colors['text_color']}; background-color: {colors['content_bg']}; padding: 10px; border-radius: 5px;">
+                <div class="markdown-content">
+                    {content}
+                </div>
+            </div>
+        </div>
+        """
         
+        # Add CSS to style markdown content
+        st.markdown("""
+        <style>
+        .markdown-content h1, .markdown-content h2, .markdown-content h3, 
+        .markdown-content h4, .markdown-content h5, .markdown-content h6 {
+            color: inherit;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+        .markdown-content p {
+            margin: 0.5em 0;
+        }
+        .markdown-content pre {
+            margin: 0.5em 0;
+            padding: 1em;
+            background-color: rgba(255,255,255,0.9);
+            border-radius: 5px;
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .markdown-content pre code {
+            all: unset;
+            display: block;
+        }
+        .markdown-content pre * {
+            text-shadow: none !important;
+            box-shadow: none !important;
+            background: none !important;
+            border: none !important;
+            outline: none !important;
+        }
+        .markdown-content :not(pre) > code {
+            padding: 0.2em 0.4em;
+            background-color: rgba(255,255,255,0.9);
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        .markdown-content ul, .markdown-content ol {
+            margin: 0.5em 0;
+            padding-left: 1.5em;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Display the message
         st.markdown(message_html, unsafe_allow_html=True)
     else:  # context
         timestamp = format_timestamp(item.get('timestamp', 'N/A'))
