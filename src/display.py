@@ -1,11 +1,16 @@
 import streamlit as st
 from src.styles import (
-    USER_COLORS, ASSISTANT_COLORS, CONTEXT_COLORS,
+    USER_COLORS, ASSISTANT_COLORS, CONTEXT_COLORS, SYSTEM_COLORS,
     TOPIC_CAPSULE_STYLE, CODE_BLOCK_STYLE, LANGUAGE_FLAGS
 )
 from src.utils import escape_html_preserve_markdown, format_timestamp
 import json
 import re
+
+def load_css():
+    """Load external CSS styles."""
+    with open("src/static/styles.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 def format_footnotes(content: str, footnotes: dict) -> str:
     """Format footnotes by embedding them directly in the content.
@@ -30,10 +35,10 @@ def format_footnotes(content: str, footnotes: dict) -> str:
             # Check if footnote is an image
             if footnote.strip().startswith('!['):
                 # Embed image directly
-                return f'\n<div style="margin: 10px 0; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">{footnote}</div>\n'
+                return f'\n<div class="footnote-image">{footnote}</div>\n'
             else:
                 # Embed text footnote with styling
-                return f' <span style="background-color: #f8f9fa; padding: 4px 8px; border-radius: 3px; border-left: 2px solid #6c757d; margin: 0 4px; font-size: 0.9em;">({footnote})</span>'
+                return f' <span class="footnote-text">({footnote})</span>'
         return match.group(0)
     
     # Replace all footnote references with their content
@@ -76,7 +81,7 @@ def format_system_message(content: str) -> str:
                 reason = metadata.get("reason", "N/A")
                 
                 formatted_parts.append(
-                    f'<div style="margin: 4px 0; padding: 6px; background-color: #f8f9fa; border-left: 3px solid #6c757d; font-size: 0.9em; color: #666;">'
+                    f'<div class="metadata-block">'
                     f'📚 <strong>Source:</strong> {source}<br>'
                     f'💡 <strong>Context:</strong> {reason}'
                     f'</div>'
@@ -144,7 +149,7 @@ def format_system_message(content: str) -> str:
             
             if cleaned_text:
                 formatted_parts.append(
-                    f'<div style="margin: 4px 0;">{cleaned_text}</div>'
+                    f'<div class="text-block">{cleaned_text}</div>'
                 )
     
     return "\n".join(formatted_parts)
@@ -161,7 +166,7 @@ def get_sentiment_widget(sentiment: str) -> str:
 
 def format_topic_capsule(topic: str) -> str:
     """Format a single topic as a capsule."""
-    return f'<span style="background-color: {TOPIC_CAPSULE_STYLE["bg_color"]}; color: {TOPIC_CAPSULE_STYLE["text_color"]}; padding: {TOPIC_CAPSULE_STYLE["padding"]}; border-radius: {TOPIC_CAPSULE_STYLE["border_radius"]}; border: 1px solid {TOPIC_CAPSULE_STYLE["border_color"]}; margin: {TOPIC_CAPSULE_STYLE["margin"]};">{topic}</span>'
+    return f'<span class="topic-capsule">{topic}</span>'
 
 def get_unity_topics_widget(topics: list) -> str:
     """Generate HTML for Unity topics widget."""
@@ -201,9 +206,18 @@ def display_message(item: dict, item_type: str = 'message') -> None:
         # Check if content contains boundary markers and JSON metadata
         if '--boundary-' in content:
             formatted_content = format_system_message(content)
-            message_html = f"""<div style="background-color: {colors['bg_color']}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {colors['border_color']}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div style="margin-bottom: 8px; color: {colors['header_color']}; font-weight: 500;">{colors['icon']} {role.title()} | {timestamp}</div>
-                <div style="color: {colors['text_color']}; background-color: {colors['content_bg']}; padding: 10px; border-radius: 5px;">{formatted_content}</div>
+            message_html = f"""<div class="message-container {role}-message">
+                <style>
+                    .{role}-message {{
+                        --bg-color: {colors['bg_color']};
+                        --border-color: {colors['border_color']};
+                        --header-color: {colors['header_color']};
+                        --text-color: {colors['text_color']};
+                        --content-bg: {colors['content_bg']};
+                    }}
+                </style>
+                <div class="message-header">{colors['icon']} {role.title()} | {timestamp}</div>
+                <div class="message-content">{formatted_content}</div>
             </div>"""
             st.markdown(message_html, unsafe_allow_html=True)
             return
@@ -222,11 +236,18 @@ def display_message(item: dict, item_type: str = 'message') -> None:
         
         # Wrap the markdown content in a styled div
         message_html = f"""
-        <div style="background-color: {colors['bg_color']}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {colors['border_color']}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="margin-bottom: 8px; color: {colors['header_color']}; font-weight: 500;">
-                {header_html}
-            </div>
-            <div style="color: {colors['text_color']}; background-color: {colors['content_bg']}; padding: 10px; border-radius: 5px;">
+        <div class="message-container {role}-message">
+            <style>
+                .{role}-message {{
+                    --bg-color: {colors['bg_color']};
+                    --border-color: {colors['border_color']};
+                    --header-color: {colors['header_color']};
+                    --text-color: {colors['text_color']};
+                    --content-bg: {colors['content_bg']};
+                }}
+            </style>
+            <div class="message-header">{header_html}</div>
+            <div class="message-content">
                 <div class="markdown-content">
                     {content}
                 </div>
@@ -234,61 +255,26 @@ def display_message(item: dict, item_type: str = 'message') -> None:
         </div>
         """
         
-        # Add CSS to style markdown content
-        st.markdown("""
-        <style>
-        .markdown-content h1, .markdown-content h2, .markdown-content h3, 
-        .markdown-content h4, .markdown-content h5, .markdown-content h6 {
-            color: inherit;
-            margin-top: 0.5em;
-            margin-bottom: 0.5em;
-        }
-        .markdown-content p {
-            margin: 0.5em 0;
-        }
-        .markdown-content pre {
-            margin: 0.5em 0;
-            padding: 1em;
-            background-color: rgba(255,255,255,0.9);
-            border-radius: 5px;
-            border: 1px solid rgba(0,0,0,0.1);
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-        }
-        .markdown-content pre code {
-            all: unset;
-            display: block;
-        }
-        .markdown-content pre * {
-            text-shadow: none !important;
-            box-shadow: none !important;
-            background: none !important;
-            border: none !important;
-            outline: none !important;
-        }
-        .markdown-content :not(pre) > code {
-            padding: 0.2em 0.4em;
-            background-color: rgba(255,255,255,0.9);
-            border-radius: 3px;
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-        .markdown-content ul, .markdown-content ol {
-            margin: 0.5em 0;
-            padding-left: 1.5em;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
         # Display the message
         st.markdown(message_html, unsafe_allow_html=True)
     else:  # context
         timestamp = format_timestamp(item.get('timestamp', 'N/A'))
         colors = CONTEXT_COLORS
         
-        context_html = f"""<div style="background-color: {colors['bg_color']}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {colors['border_color']}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="margin-bottom: 8px; color: {colors['header_color']}; font-weight: 500;"><strong>{colors['icon']} Context Used</strong> | {timestamp}</div>
+        context_html = f"""<div class="context-container">
+            <style>
+                .context-container {{
+                    --bg-color: {colors['bg_color']};
+                    --border-color: {colors['border_color']};
+                    --header-color: {colors['header_color']};
+                    --text-color: {colors['text_color']};
+                    --content-bg: {colors['content_bg']};
+                }}
+            </style>
+            <div class="context-header"><strong>{colors['icon']} Context Used</strong> | {timestamp}</div>
             <details>
-                <summary style="color: {colors['header_color']}; font-weight: 500; cursor: pointer; padding: 5px;">View Context Data</summary>
-                <div style="color: {colors['text_color']}; margin-top: 10px; padding: 10px; border-radius: 5px; background-color: {colors['content_bg']};">{escape_html_preserve_markdown(str(item.get('data', 'No data available')))}</div>
+                <summary class="context-summary">View Context Data</summary>
+                <div class="context-content">{escape_html_preserve_markdown(str(item.get('data', 'No data available')))}</div>
             </details>
         </div>"""
         
@@ -380,6 +366,7 @@ def display_conversation_overview(conversation_details: dict, messages: list):
 
 def display_formatted_conversation(conversation: dict, contexts: list, messages: list) -> None:
     """Display conversation data in a formatted, user-friendly way."""
+    load_css()  # Load CSS styles
     display_conversation_overview(conversation, messages)
     
     if messages:
