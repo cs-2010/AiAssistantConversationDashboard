@@ -1,0 +1,147 @@
+/* Message Container Styles */
+.message-container {
+    background-color: var(--bg-color, #f8f9fa);
+    padding: 15px;
+    border-radius: 10px;
+    margin: 10px 0;
+    border-left: 5px solid var(--border-color, #dee2e6);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.message-container .message-header {
+    margin-bottom: 8px;
+    color: var(--header-color, #495057);
+    font-weight: 500;
+}
+
+.message-container .message-content {
+    color: var(--text-color, #495057);
+    background-color: var(--content-bg, #ffffff);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+/* Context Container Styles */
+.context-container {
+    background-color: var(--bg-color, #fff3cd);
+    padding: 15px;
+    border-radius: 10px;
+    margin: 10px 0;
+    border-left: 5px solid var(--border-color, #ffe69c);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.context-container .context-header {
+    margin-bottom: 8px;
+    color: var(--header-color, #664d03);
+    font-weight: 500;
+}
+
+.context-container .context-summary {
+    color: var(--header-color, #664d03);
+    font-weight: 500;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.context-container .context-content {
+    color: var(--text-color, #664d03);
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: var(--content-bg, #ffffff);
+}
+
+/* Markdown Content Styles */
+.markdown-content h1, 
+.markdown-content h2, 
+.markdown-content h3, 
+.markdown-content h4, 
+.markdown-content h5, 
+.markdown-content h6 {
+    color: inherit;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+.markdown-content p {
+    margin: 0.5em 0;
+}
+
+.markdown-content pre {
+    margin: 0.5em 0;
+    padding: 1em;
+    background-color: rgba(255,255,255,0.9);
+    border-radius: 5px;
+    border: 1px solid rgba(0,0,0,0.1);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.markdown-content pre code {
+    all: unset;
+    display: block;
+}
+
+.markdown-content pre * {
+    text-shadow: none !important;
+    box-shadow: none !important;
+    background: none !important;
+    border: none !important;
+    outline: none !important;
+}
+
+.markdown-content :not(pre) > code {
+    padding: 0.2em 0.4em;
+    background-color: rgba(255,255,255,0.9);
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+
+/* Topic Capsule Styles */
+.topic-capsule {
+    background-color: var(--bg-color, #f8f9fa);
+    color: var(--text-color, #495057);
+    padding: 4px 8px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color, #dee2e6);
+    margin: 0 4px;
+    font-size: 0.9em;
+}
+
+/* Footnote Styles */
+.footnote-text {
+    background-color: var(--bg-color, #f8f9fa);
+    padding: 4px 8px;
+    border-radius: 3px;
+    border-left: 2px solid var(--border-color, #6c757d);
+    margin: 0 4px;
+    font-size: 0.9em;
+}
+
+.footnote-image {
+    margin: 10px 0;
+    padding: 10px;
+    background-color: var(--bg-color, #f8f9fa);
+    border-radius: 5px;
+}
+
+/* Metadata Block Styles */
+.metadata-block {
+    margin: 4px 0;
+    padding: 6px;
+    background-color: var(--bg-color, #f8f9fa);
+    border-left: 3px solid var(--border-color, #6c757d);
+    font-size: 0.9em;
+    color: var(--text-color, #666);
+}
+
+/* Text Block Styles */
+.text-block {
+    margin: 4px 0;
+}

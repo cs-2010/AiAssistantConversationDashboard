@@ -1,0 +1,162 @@
+# Instructions for Windsurf
+
+These rules are designed to guide Windsurf in generating and modifying code for this project.
+
+## General Guidelines
+
+- **Focus on Specific Changes:** When a task requests a small update or modification, Windsurf should focus solely on the requested change. Avoid making broad, unrelated refactoring changes unless explicitly asked to do so.
+- **Preserve Existing Structure:** Maintain the existing code structure and organization as much as possible when making modifications.
+- **Maintain Comments and Readability:** Ensure that all generated and modified code is well-commented and easy to understand. Preserve existing comments and add new ones where necessary to explain the purpose and logic of the code.
+- **Optimize for Performance:** Write efficient code, considering factors like algorithm choice and data structures. However, prioritize readability and maintainability unless performance is a critical bottleneck.
+- **Adhere to Streamlit Guidelines:** When working with Streamlit components or features, follow the latest recommendations and best practices outlined in the official Streamlit documentation (https://docs.streamlit.io/).
+
+## Specific Instructions
+
+- **Refactoring:** Only perform refactoring when explicitly requested or when it is absolutely necessary to implement a requested feature or fix a bug. If refactoring is needed, explain the reasons for the changes in the response.
+- **Commenting:**
+    - Add comments to explain complex logic or non-obvious code sections.
+    - Ensure that function and method definitions have clear docstrings explaining their purpose, parameters, and return values.
+- **Readability:**
+    - Use meaningful variable and function names.
+    - Keep functions and methods concise and focused on a single task.
+    - Follow consistent indentation and formatting.
+- **Streamlit Best Practices:**
+    - Utilize Streamlit's caching mechanisms (`@st.cache_data`, `@st.cache_resource`) where appropriate to improve performance.
+    - Organize the layout of Streamlit applications using columns, tabs, and expanders for better user experience.
+    - Follow the recommended patterns for state management in Streamlit applications.
+    - Use Streamlit's built-in magic commands and data display functions effectively.
+
+## Project Structure
+
+### Core Components
+- `Hello.py`: Main application entry point
+  - Keep the interface clean and focused
+  - Use consistent page layout patterns
+  - Maintain clear navigation structure
+
+### Source Code (`src/`)
+- `database.py`: MongoDB interactions
+  - Use type hints for query functions
+  - Implement proper error handling
+  - Cache expensive database operations
+  
+- `display.py`: UI Components
+  - Maintain color scheme consistency
+  - Follow message styling conventions:
+    - User messages: Blue theme
+    - Assistant messages: Green theme
+    - Context entries: Purple theme
+  - Use proper CSS variable scoping
+  
+- `styles.py`: Style Constants
+  - Keep color definitions centralized
+  - Use semantic color naming
+  - Document color scheme changes
+  
+- `utils.py`: Helper Functions
+  - Keep functions focused and reusable
+  - Add comprehensive docstrings
+  - Implement proper error handling
+
+### Static Assets (`src/static/`)
+- `styles.css`: Global Styles
+  - Use CSS variables for theming
+  - Maintain consistent spacing
+  - Follow BEM naming convention
+  - Ensure mobile responsiveness
+
+### Pages (`pages/`)
+- `conversation.py`: Conversation View
+  - Implement proper state management
+  - Use Streamlit caching effectively
+  - Maintain clear component hierarchy
+
+## Development Guidelines
+
+### Code Organization
+1. **Component Structure**:
+   - Keep components modular and reusable
+   - Follow single responsibility principle
+   - Use clear naming conventions
+
+2. **State Management**:
+   - Use Streamlit session state appropriately
+   - Cache expensive computations
+   - Clear state when necessary
+
+3. **Styling Principles**:
+   - Use CSS variables for theming
+   - Maintain consistent spacing
+   - Follow responsive design patterns
+
+### Best Practices
+
+1. **Performance**:
+   - Cache database queries
+   - Optimize large data operations
+   - Use efficient data structures
+
+2. **Code Quality**:
+   - Follow PEP 8 style guide
+   - Add comprehensive docstrings
+   - Use type hints consistently
+   - Write clear commit messages
+
+3. **UI/UX**:
+   - Maintain consistent spacing
+   - Use clear visual hierarchy
+   - Ensure mobile responsiveness
+   - Follow accessibility guidelines
+
+4. **Message Display**:
+   - Use consistent color schemes
+   - Maintain proper spacing
+   - Handle markdown correctly
+   - Preserve code formatting
+
+### Color Scheme Management
+
+1. **User Messages**:
+   - Background: #e3f2fd
+   - Border: #1976d2
+   - Text: #1565c0
+
+2. **Assistant Messages**:
+   - Background: #e8f5e9
+   - Border: #2e7d32
+   - Text: #1b5e20
+
+3. **Context Entries**:
+   - Background: #f3e5f5
+   - Border: #9c27b0
+   - Text: #6a1b9a
+
+4. **System Messages**:
+   - Background: #f8f9fa
+   - Border: #dee2e6
+   - Text: #495057
+
+## Testing Guidelines
+
+1. **Manual Testing**:
+   - Test all message types
+   - Verify color schemes
+   - Check responsive behavior
+   - Validate data display
+
+2. **Performance Testing**:
+   - Monitor query performance
+   - Check memory usage
+   - Validate caching behavior
+
+## Documentation
+
+1. **Code Comments**:
+   - Add descriptive docstrings
+   - Explain complex logic
+   - Document style changes
+
+2. **Commit Messages**:
+   - Use clear, descriptive messages
+   - Reference related issues
+   - Explain significant changes

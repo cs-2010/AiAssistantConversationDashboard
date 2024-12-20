@@ -1,23 +1,161 @@
-"""
-Display components and UI functions for the AI Assistant Conversation Dashboard.
-"""
-
 import streamlit as st
-from .styles import (
-    USER_COLORS, ASSISTANT_COLORS, CONTEXT_COLORS,
+from src.styles import (
+    USER_COLORS, ASSISTANT_COLORS, CONTEXT_COLORS, SYSTEM_COLORS,
     TOPIC_CAPSULE_STYLE, CODE_BLOCK_STYLE, LANGUAGE_FLAGS
 )
-from .utils import escape_html_preserve_markdown, format_timestamp
+from src.utils import escape_html_preserve_markdown, format_timestamp
+import json
+import re
 
-def get_sentiment_widget(sentiment: str) -> str:
-    """Generate HTML for sentiment indicator widget using emojis.
+def load_css():
+    """Load external CSS styles."""
+    with open("src/static/styles.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+def format_footnotes(content: str, footnotes: dict) -> str:
+    """Format footnotes by embedding them directly in the content.
     
     Args:
-        sentiment (str): Sentiment value ('positive', 'neutral', or 'negative')
+        content (str): Message content with footnote references
+        footnotes (dict): Dictionary of footnote references
         
     Returns:
-        str: HTML string for sentiment widget
+        str: Content with embedded footnotes
     """
+    if not footnotes:
+        return content
+        
+    # Find footnote references in the content (e.g., [^1], [^1^], [^note], or 1↩)
+    pattern = r'\[\^([^\]^]+)\^?\]|\d+↩'
+    
+    def replace_footnote(match):
+        ref = match.group(1) if match.group(1) else match.group(0).replace('↩', '')
+        if ref in footnotes:
+            footnote = footnotes[ref]
+            # Check if footnote is an image
+            if footnote.strip().startswith('!['):
+                # Embed image directly
+                return f'\n<div class="footnote-image">{footnote}</div>\n'
+            else:
+                # Embed text footnote with styling
+                return f' <span class="footnote-text">({footnote})</span>'
+        return match.group(0)
+    
+    # Replace all footnote references with their content
+    formatted_content = re.sub(pattern, replace_footnote, content)
+    
+    # Remove the "Footnotes" section and everything after it
+    footnotes_pattern = r'\n\s*Footnotes\s*\n.*$'
+    formatted_content = re.sub(footnotes_pattern, '', formatted_content, flags=re.DOTALL)
+    
+    return formatted_content
+
+def format_system_message(content: str) -> str:
+    """Format system message content by properly handling boundary markers and metadata.
+    
+    Args:
+        content (str): Raw system message content with boundary markers
+        
+    Returns:
+        str: Formatted message content with improved readability
+    """
+    # Define the pattern to match JSON metadata between boundary markers
+    pattern = r'--boundary-[a-f0-9]+\s*({\s*"source":[^}]+})\s*boundary-[a-f0-9]+\s*'
+    
+    # Split content into text blocks and metadata
+    text_blocks = re.split(pattern, content)
+    
+    formatted_parts = []
+    
+    # Process each part
+    for i in range(len(text_blocks)):
+        part = text_blocks[i].strip()
+        if not part:
+            continue
+            
+        if part.startswith('{') and part.endswith('}'):
+            # This is a metadata block
+            try:
+                metadata = json.loads(part)
+                source = metadata.get("source", "N/A")
+                reason = metadata.get("reason", "N/A")
+                
+                formatted_parts.append(
+                    f'<div class="metadata-block">'
+                    f'📚 <strong>Source:</strong> {source}<br>'
+                    f'💡 <strong>Context:</strong> {reason}'
+                    f'</div>'
+                )
+            except json.JSONDecodeError:
+                continue
+        else:
+            # This is a text block
+            # Clean up whitespace while preserving intentional line breaks
+            lines = [line.strip() for line in part.split('\n')]
+            # Remove empty lines at start and end
+            while lines and not lines[0]:
+                lines.pop(0)
+            while lines and not lines[-1]:
+                lines.pop()
+                
+            # Join non-empty lines with appropriate spacing
+            cleaned_text = ''
+            current_block = []
+            in_code_block = False
+            
+            for j, line in enumerate(lines):
+                if line.startswith('```'):
+                    if in_code_block:
+                        # End of code block
+                        current_block.append(line)
+                        cleaned_text += escape_html_preserve_markdown('\n'.join(current_block))
+                        current_block = []
+                        in_code_block = False
+                    else:
+                        # Start of code block
+                        if current_block:
+                            cleaned_text += escape_html_preserve_markdown(' '.join(current_block))
+                            current_block = []
+                        current_block.append(line)
+                        in_code_block = True
+                elif in_code_block:
+                    current_block.append(line)
+                else:
+                    # Check if line starts with a list marker or heading
+                    is_list_or_heading = bool(re.match(r'^[#*\-\d]+[.)\s]', line))
+                    
+                    if not line:  # Empty line indicates section break
+                        if current_block:
+                            if cleaned_text and not cleaned_text.endswith('</p>'):
+                                cleaned_text += escape_html_preserve_markdown(' '.join(current_block))
+                            current_block = []
+                        if j > 0 and j < len(lines) - 1:  # Don't add breaks at start or end
+                            cleaned_text += '<br>'
+                    elif is_list_or_heading:
+                        if current_block:
+                            cleaned_text += escape_html_preserve_markdown(' '.join(current_block))
+                            current_block = []
+                            cleaned_text += '<br>'
+                        current_block.append(line)
+                    else:
+                        current_block.append(line)
+            
+            # Handle any remaining text
+            if current_block:
+                if in_code_block:
+                    cleaned_text += escape_html_preserve_markdown('\n'.join(current_block))
+                else:
+                    cleaned_text += escape_html_preserve_markdown(' '.join(current_block))
+            
+            if cleaned_text:
+                formatted_parts.append(
+                    f'<div class="text-block">{cleaned_text}</div>'
+                )
+    
+    return "\n".join(formatted_parts)
+
+def get_sentiment_widget(sentiment: str) -> str:
+    """Generate HTML for sentiment indicator widget using emojis."""
     sentiment_emojis = {
         'positive': '😊',
         'neutral': '😐',
@@ -27,40 +165,18 @@ def get_sentiment_widget(sentiment: str) -> str:
     return emoji
 
 def format_topic_capsule(topic: str) -> str:
-    """Format a single topic as a capsule.
-    
-    Args:
-        topic (str): Topic to format
-        
-    Returns:
-        str: HTML string for topic capsule
-    """
-    return f'<span style="background-color: {TOPIC_CAPSULE_STYLE["bg_color"]}; color: {TOPIC_CAPSULE_STYLE["text_color"]}; padding: {TOPIC_CAPSULE_STYLE["padding"]}; border-radius: {TOPIC_CAPSULE_STYLE["border_radius"]}; border: 1px solid {TOPIC_CAPSULE_STYLE["border_color"]}; margin: {TOPIC_CAPSULE_STYLE["margin"]};">{topic}</span>'
+    """Format a single topic as a capsule."""
+    return f'<span class="topic-capsule">{topic}</span>'
 
 def get_unity_topics_widget(topics: list) -> str:
-    """Generate HTML for Unity topics widget.
-    
-    Args:
-        topics (list): List of Unity topics
-        
-    Returns:
-        str: HTML string for Unity topics widget
-    """
+    """Generate HTML for Unity topics widget."""
     if not topics:
         return ''
-    
     formatted_topics = [format_topic_capsule(topic) for topic in topics]
     return f'🎮 {" ".join(formatted_topics)}'
 
 def get_external_knowledge_widget(classification: dict) -> str:
-    """Generate HTML for external knowledge widget with tooltip.
-    
-    Args:
-        classification (dict): Classification data containing external_knowledge
-        
-    Returns:
-        str: HTML string for external knowledge widget
-    """
+    """Generate HTML for external knowledge widget with tooltip."""
     knowledge_level = classification.get('external_knowledge', 'none')
     knowledge_emojis = {
         'none': '📝',
@@ -83,6 +199,29 @@ def display_message(item: dict, item_type: str = 'message') -> None:
         timestamp = format_timestamp(item.get('timestamp', 'N/A'))
         colors = USER_COLORS if role == 'user' else ASSISTANT_COLORS
         
+        # Format footnotes if present
+        if 'footnotes' in item:
+            content = format_footnotes(content, item['footnotes'])
+        
+        # Check if content contains boundary markers and JSON metadata
+        if '--boundary-' in content:
+            formatted_content = format_system_message(content)
+            message_html = f"""<div class="message-container {role}-message">
+                <style>
+                    .{role}-message {{
+                        --bg-color: {colors['bg_color']};
+                        --border-color: {colors['border_color']};
+                        --header-color: {colors['header_color']};
+                        --text-color: {colors['text_color']};
+                        --content-bg: {colors['content_bg']};
+                    }}
+                </style>
+                <div class="message-header">{colors['icon']} {role.title()} | {timestamp}</div>
+                <div class="message-content">{formatted_content}</div>
+            </div>"""
+            st.markdown(message_html, unsafe_allow_html=True)
+            return
+        
         # Get sentiment, Unity topics, and external knowledge from front_desk_classification_results
         classification = item.get('front_desk_classification_results', {})
         sentiment = classification.get('sentiment', 'neutral').lower()
@@ -95,14 +234,49 @@ def display_message(item: dict, item_type: str = 'message') -> None:
         # Create single-line header with all elements
         header_html = f"{colors['icon']} {role.title()} | {sentiment_widget} {unity_topics_widget} | {external_knowledge_widget} | {timestamp}"
         
-        message_html = f"""<div style="background-color: {colors['bg_color']}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {colors['border_color']}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><div style="margin-bottom: 8px; color: {colors['header_color']}; font-weight: 500;">{header_html}</div><div style="color: {colors['text_color']}; background-color: {colors['content_bg']}; padding: 10px; border-radius: 5px;">{escape_html_preserve_markdown(content)}</div></div>"""
+        # Wrap the markdown content in a styled div
+        message_html = f"""
+        <div class="message-container {role}-message">
+            <style>
+                .{role}-message {{
+                    --bg-color: {colors['bg_color']};
+                    --border-color: {colors['border_color']};
+                    --header-color: {colors['header_color']};
+                    --text-color: {colors['text_color']};
+                    --content-bg: {colors['content_bg']};
+                }}
+            </style>
+            <div class="message-header">{header_html}</div>
+            <div class="message-content">
+                <div class="markdown-content">
+                    {content}
+                </div>
+            </div>
+        </div>
+        """
         
+        # Display the message
         st.markdown(message_html, unsafe_allow_html=True)
     else:  # context
         timestamp = format_timestamp(item.get('timestamp', 'N/A'))
         colors = CONTEXT_COLORS
         
-        context_html = f"""<div style="background-color: {colors['bg_color']}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {colors['border_color']}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><div style="margin-bottom: 8px; color: {colors['header_color']}; font-weight: 500;"><strong>{colors['icon']} Context Used</strong> | {timestamp}</div><details><summary style="color: {colors['header_color']}; font-weight: 500; cursor: pointer; padding: 5px;">View Context Data</summary><div style="color: {colors['text_color']}; margin-top: 10px; padding: 10px; border-radius: 5px; background-color: {colors['content_bg']};">{escape_html_preserve_markdown(str(item.get('data', 'No data available')))}</div></details></div>"""
+        context_html = f"""<div class="context-container">
+            <style>
+                .context-container {{
+                    --bg-color: {colors['bg_color']};
+                    --border-color: {colors['border_color']};
+                    --header-color: {colors['header_color']};
+                    --text-color: {colors['text_color']};
+                    --content-bg: {colors['content_bg']};
+                }}
+            </style>
+            <div class="context-header"><strong>{colors['icon']} Context Used</strong> | {timestamp}</div>
+            <details>
+                <summary class="context-summary">View Context Data</summary>
+                <div class="context-content">{escape_html_preserve_markdown(str(item.get('data', 'No data available')))}</div>
+            </details>
+        </div>"""
         
         st.markdown(context_html, unsafe_allow_html=True)
 
@@ -192,6 +366,7 @@ def display_conversation_overview(conversation_details: dict, messages: list):
 
 def display_formatted_conversation(conversation: dict, contexts: list, messages: list) -> None:
     """Display conversation data in a formatted, user-friendly way."""
+    load_css()  # Load CSS styles
     display_conversation_overview(conversation, messages)
     
     if messages:

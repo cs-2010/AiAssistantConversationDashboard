@@ -4,7 +4,7 @@ A Streamlit-based dashboard for analyzing conversation data stored in MongoDB. T
 
 ## Features
 
-- **Dual View Interface**:
+- **Conversation Viewer**:
   - **Raw Data View**: Displays conversation data in a three-column layout, showing:
     - Conversation Details
     - Context Entries
@@ -15,6 +15,20 @@ A Streamlit-based dashboard for analyzing conversation data stored in MongoDB. T
     - Expandable context data sections
     - Timestamps in human-readable format
     - Markdown support in messages
+
+- **Database Query**:
+  - Search conversations by title
+  - Advanced filtering options:
+    - Message count range (min/max messages)
+    - Date range (start/end dates)
+  - Display results in a clear, tabular format showing:
+    - Conversation ID
+    - Title
+    - Message count
+    - First and last messages
+    - Creation and update timestamps
+    - Conversation owners
+  - Pagination support with "Load More" functionality
 
 - **Context Integration**:
   - Seamless display of context entries within the conversation
@@ -27,6 +41,14 @@ A Streamlit-based dashboard for analyzing conversation data stored in MongoDB. T
   - Markdown preservation in formatted messages
   - Proper handling of code blocks and inline code
   - Unix timestamp conversion to readable dates
+
+- **Message Display**:
+  - Enhanced system message formatting with boundary markers
+  - Proper handling of embedded metadata and references
+  - Footnote support with inline citations
+  - Sentiment analysis indicators
+  - Topic classification display
+  - Message statistics
 
 - **User Interface**:
   - Clean, modern design with proper spacing
@@ -74,12 +96,14 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 2. Run the Streamlit application:
 ```bash
-streamlit run src/app.py
+streamlit run Hello.py
 ```
 
 3. Open your browser and navigate to the URL shown in the terminal (typically http://localhost:8501)
 
-4. Enter a conversation ID in the input field and click "Load" to view the conversation data
+4. Use the sidebar to navigate between:
+   - Conversation Viewer: View detailed conversation data by ID
+   - Database Query: Search and browse conversations
 
 ## Environment Variables
 
@@ -88,29 +112,33 @@ streamlit run src/app.py
 
 ## Dependencies
 
-- streamlit==1.29.0: Web application framework
-- pymongo==4.6.1: MongoDB driver for Python
-- python-dotenv==1.0.0: Environment variable management
-- dnspython==2.7.0: DNS support for MongoDB connection
+- streamlit>=1.29.0: Web application framework
+- pymongo>=4.6.1: MongoDB driver for Python
+- python-dotenv>=1.0.0: Environment variable management
+- dnspython>=2.7.0: DNS support for MongoDB connection
 
 ## Project Structure
 
 ```
 AiAssistantConversationDashboard/
 ├── src/
-│   ├── app.py          # Main application file
 │   ├── database.py     # Database connection and operations
 │   ├── display.py      # UI components and display functions
 │   ├── utils.py        # Helper functions
 │   ├── styles.py       # Style constants
 │   └── __init__.py
-├── requirements.txt    # Python dependencies
-├── .env.example       # Example environment variables
-├── .gitignore        # Git ignore rules
-└── Docs/             # Documentation files
+├── pages/
+│   ├── 1_💬_Conversation_Viewer.py  # Conversation viewer page
+│   └── 2_🔍_Database_Query.py       # Database query page
+├── Hello.py           # Main application file
+├── requirements.txt   # Python dependencies
+├── .env.example      # Example environment variables
+├── .gitignore       # Git ignore rules
+└── Docs/            # Documentation files
     ├── context.md           # Context data format documentation
     ├── conversationDetail.md # Conversation structure documentation
     └── messageHistory.md    # Message format documentation
+```
 
 ## Contributing
 
@@ -119,7 +147,3 @@ AiAssistantConversationDashboard/
 3. Commit your changes
 4. Push to the branch
 5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.

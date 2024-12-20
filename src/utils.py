@@ -6,7 +6,7 @@ import re
 import html
 import functools
 from datetime import datetime
-from .styles import CODE_BLOCK_STYLE, DATETIME_FORMAT
+from src.styles import CODE_BLOCK_STYLE, DATETIME_FORMAT
 
 # Regular expressions for markdown parsing
 _code_block_regex = re.compile(r'```[\s\S]*?```|`[^`]+`')
@@ -36,9 +36,9 @@ def escape_html_preserve_markdown(text: str) -> str:
         
         # Replace HTML tags with their escaped versions
         processed = processed.replace('&', '&amp;')\
-                           .replace('<', '&lt;')\
-                           .replace('>', '&gt;')\
-                           .replace('"', '&quot;')\
+                           .replace('<', '<')\
+                           .replace('>', '>')\
+                           .replace('"', '"')\
                            .replace("'", '&#39;')
         
         # Clean up any remaining problematic tags
