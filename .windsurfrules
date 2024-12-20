@@ -1,0 +1,27 @@
+# Instructions for Windsurf
+
+These rules are designed to guide Windsurf in generating and modifying code for this project.
+
+## General Guidelines
+
+- **Focus on Specific Changes:** When a task requests a small update or modification, Windsurf should focus solely on the requested change. Avoid making broad, unrelated refactoring changes unless explicitly asked to do so.
+- **Preserve Existing Structure:** Maintain the existing code structure and organization as much as possible when making modifications.
+- **Maintain Comments and Readability:** Ensure that all generated and modified code is well-commented and easy to understand. Preserve existing comments and add new ones where necessary to explain the purpose and logic of the code.
+- **Optimize for Performance:** Write efficient code, considering factors like algorithm choice and data structures. However, prioritize readability and maintainability unless performance is a critical bottleneck.
+- **Adhere to Streamlit Guidelines:** When working with Streamlit components or features, follow the latest recommendations and best practices outlined in the official Streamlit documentation (https://docs.streamlit.io/).
+
+## Specific Instructions
+
+- **Refactoring:** Only perform refactoring when explicitly requested or when it is absolutely necessary to implement a requested feature or fix a bug. If refactoring is needed, explain the reasons for the changes in the response.
+- **Commenting:**
+    - Add comments to explain complex logic or non-obvious code sections.
+    - Ensure that function and method definitions have clear docstrings explaining their purpose, parameters, and return values.
+- **Readability:**
+    - Use meaningful variable and function names.
+    - Keep functions and methods concise and focused on a single task.
+    - Follow consistent indentation and formatting.
+- **Streamlit Best Practices:**
+    - Utilize Streamlit's caching mechanisms (`@st.cache_data`, `@st.cache_resource`) where appropriate to improve performance.
+    - Organize the layout of Streamlit applications using columns, tabs, and expanders for better user experience.
+    - Follow the recommended patterns for state management in Streamlit applications.
+    - Use Streamlit's built-in magic commands and data display functions effectively.
