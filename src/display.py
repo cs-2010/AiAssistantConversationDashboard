@@ -370,6 +370,9 @@ def display_formatted_conversation(conversation: dict, contexts: list, messages:
     display_conversation_overview(conversation, messages)
     
     if messages:
+        st.subheader("Virtual Product Manager 🧑‍💼")
+        summary = "This is a placeholder summary." # Placeholder for now
+        st.write(summary)
         st.subheader("💬 Message History")
         
         # Create a dictionary of contexts indexed by their IDs
