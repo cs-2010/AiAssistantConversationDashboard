@@ -5,7 +5,7 @@ Main application file for the AI Assistant Conversation Dashboard.
 import streamlit as st
 from src.database import fetch_conversation_data
 from src.display import display_formatted_conversation
-from src.llm import summarize_conversation
+from src.llm import summarize_conversation_groq
 from dotenv import load_dotenv
 import streamlit as st
 
