@@ -51,17 +51,34 @@ CONTEXT_COLORS = {
     'icon': '🔍'
 }
 
-CODE_BLOCK_STYLE = {
-    'bg_color': '#f8f9fa',  # Light grey background
-    'border_color': '#e9ecef',  # Slightly darker grey for border
-    'text_color': '#212529'  # Dark grey for text
+SYSTEM_COLORS = {
+    'bg_color': '#f8f9fa',
+    'border_color': '#dee2e6',
+    'header_color': '#495057',
+    'text_color': '#495057',
+    'content_bg': 'rgba(73, 80, 87, 0.05)',
+    'icon': '⚙️'
 }
 
-TOPIC_CAPSULE_STYLE = {
-    'bg_color': '#f0f0f0',  # Light grey background
-    'border_color': '#d0d0d0',  # Slightly darker grey for border
-    'text_color': '#333333',  # Dark grey for text
-    'padding': '2px 8px',
-    'border_radius': '12px',
-    'margin': '0 2px'
-}
+# Style for topic capsules
+TOPIC_CAPSULE_STYLE = """
+    display: inline-block;
+    padding: 0.25em 0.5em;
+    margin: 0.1em;
+    border-radius: 1em;
+    background-color: #e9ecef;
+    color: #495057;
+    font-size: 0.875em;
+"""
+
+# Style for code blocks
+CODE_BLOCK_STYLE = """
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+"""
