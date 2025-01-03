@@ -364,33 +364,40 @@ def display_conversation_overview(conversation_details: dict, messages: list):
                 topics_html = " ".join([format_topic_capsule(topic) for topic in sorted(all_topics)])
                 st.markdown(f"Topics: {topics_html}", unsafe_allow_html=True)
 
-def display_formatted_conversation(conversation: dict, contexts: list, messages: list) -> None:
+def display_formatted_conversation(conversation: dict, contexts: list, messages: list, pm_analysis_started: bool = False) -> None:
     """Display conversation data in a formatted, user-friendly way."""
     load_css()  # Load CSS styles
     display_conversation_overview(conversation, messages)
     
     if messages:
         st.subheader("Virtual Product Manager 🧑‍💼")
-        summary = "This is a placeholder summary." # Placeholder for now
-        st.write(summary)
+        if not pm_analysis_started:
+            st.button("Summarize Conversation", on_click=lambda: _summarize_conversation(conversation, contexts, messages))
+        if 'summary' in st.session_state:
+            st.write(st.session_state.summary)
         st.subheader("💬 Message History")
-        
-        # Create a dictionary of contexts indexed by their IDs
-        context_dict = {ctx['id']: ctx for ctx in contexts}
-        
-        # Sort messages by timestamp
-        timeline = []
-        for msg in messages:
-            timeline.append(('message', msg.get('timestamp', 0), msg))
-            # If message has context, add it to timeline
-            if msg.get('context_id') and msg.get('context_id') in context_dict:
-                timeline.append(('context', msg.get('timestamp', 0), context_dict[msg.get('context_id')]))
-        
-        # Sort timeline by timestamp
-        timeline.sort(key=lambda x: x[1])
-        
-        # Display items in chronological order
-        for item_type, _, item in timeline:
-            display_message(item, item_type)
+    
+    # Create a dictionary of contexts indexed by their IDs
+    context_dict = {ctx['id']: ctx for ctx in contexts}
+    
+    # Sort messages by timestamp
+    timeline = []
+    for msg in messages:
+        timeline.append(('message', msg.get('timestamp', 0), msg))
+        # If message has context, add it to timeline
+        if msg.get('context_id') and msg.get('context_id') in context_dict:
+            timeline.append(('context', msg.get('timestamp', 0), context_dict[msg.get('context_id')]))
+    
+    # Sort timeline by timestamp
+    timeline.sort(key=lambda x: x[1])
+    
+    # Display items in chronological order
+    for item_type, _, item in timeline:
+        display_message(item, item_type)
     else:
         st.warning("No messages found in the conversation")
+
+def _summarize_conversation(conversation, contexts, messages):
+    from src.llm import summarize_conversation_groq
+    summary = summarize_conversation_groq(conversation, contexts, messages)
+    st.session_state.summary = summary
