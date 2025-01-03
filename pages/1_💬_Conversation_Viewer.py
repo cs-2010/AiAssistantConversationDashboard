@@ -7,7 +7,6 @@ from src.database import fetch_conversation_data
 from src.display import display_formatted_conversation
 from src.llm import summarize_conversation_groq
 from dotenv import load_dotenv
-import streamlit as st
 
 load_dotenv()
 
@@ -80,20 +79,14 @@ def main():
             # Column 3: Message History from analytics
             with col3:
                 st.header("Message History")
-                if messages:
+                if analytics_data and messages:
                     st.json(analytics_data)
+                elif messages:
+                    st.json({"messages": messages})
                 else:
-                    st.info("No messages found")
+                    st.empty()
             
             st.markdown("</div>", unsafe_allow_html=True)
-        
-        # Handle PM Analysis button outside the tab to prevent reloads
-        col1, col2, col3 = st.columns([3, 2, 3])
-        with col2:
-            if st.session_state.pm_analysis_started:
-                st.button("Stop AI Product Manager Analysis", on_click=stop_analysis, key="stop_button")
-            else:
-                st.button("Start AI Product Manager Analysis", on_click=start_analysis, key="start_button")
         
         with tab2:
             display_formatted_conversation(

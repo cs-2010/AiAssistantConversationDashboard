@@ -394,8 +394,6 @@ def display_formatted_conversation(conversation: dict, contexts: list, messages:
     # Display items in chronological order
     for item_type, _, item in timeline:
         display_message(item, item_type)
-    else:
-        st.warning("No messages found in the conversation")
 
 def _summarize_conversation(conversation, contexts, messages):
     from src.llm import summarize_conversation_groq

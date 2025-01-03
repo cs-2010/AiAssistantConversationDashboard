@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import streamlit as st
 from groq import Groq
 from groq.types.chat import ChatCompletion
+from src.utils import save_groq_prompt
 
 load_dotenv()
 
@@ -46,7 +47,8 @@ def create_conversation_prompt(messages: List[Dict[str, str]], max_tokens: int =
     
     Args:
         messages (List[Dict[str, str]]): List of message dictionaries containing 'role' and 'content'.
-        max_tokens (int, optional): Maximum tokens for the prompt. Defaults to 6000 (Groq's TPM limit).
+        max_tokens (int, optional): Maximum tokens for the prompt. Defaults to 6000 (GROQ's TPM limit).
+                                  While Llama 3.3 supports 32k context, we respect GROQ's rate limits.
     
     Returns:
         str: Formatted prompt string.
@@ -57,14 +59,15 @@ def create_conversation_prompt(messages: List[Dict[str, str]], max_tokens: int =
     truncated_messages = []
     total_tokens = estimated_prompt_tokens
     
-    # Reserve 40% of max tokens for model response and system overhead
-    working_token_limit = int(max_tokens * 0.6)
+    # Reserve 20% of max tokens for model response
+    working_token_limit = int(max_tokens * 0.8)
     
     for msg in messages:
         role = msg.get('role', 'unknown').lower()
         content = msg.get('content', 'No content')
         
-        message_format = f"{role.title()}: {content}\n"
+        # Format message with role header and indented content
+        message_format = f"[{role.upper()}]:\n{content}\n\n"
         message_tokens = estimate_tokens(message_format)
         
         if total_tokens + message_tokens <= working_token_limit:
@@ -76,13 +79,13 @@ def create_conversation_prompt(messages: List[Dict[str, str]], max_tokens: int =
             if remaining_tokens > 100:  # Only include partial if we have room for meaningful content
                 chars_to_include = remaining_tokens * 4
                 truncated_content = content[:chars_to_include]
-                truncated_messages.append(f"{role.title()}: {truncated_content}...\n")
+                truncated_messages.append(f"[{role.upper()}]:\n{truncated_content}...\n\n")
             break
     
     final_prompt = prompt_start + "".join(truncated_messages)
     # Add a note if messages were truncated
     if len(truncated_messages) < len(messages):
-        final_prompt += "\n[Note: Some messages were truncated to fit within token limits]"
+        final_prompt += "\n[Note: Some messages were truncated to fit within GROQ's rate limits]"
     
     return final_prompt
 
@@ -107,7 +110,7 @@ def summarize_conversation_groq(
         messages (List[Dict[str, str]]): List of messages in the conversation.
         model (str, optional): ID of the model to use. Defaults to "llama-3.3-70b-versatile".
         temperature (float, optional): Sampling temperature between 0 and 2. Defaults to 0.7.
-        max_tokens (Optional[int], optional): Maximum number of tokens to generate. Defaults to 1000.
+        max_tokens (Optional[int], optional): Maximum tokens to generate for response. Defaults to 1000.
         top_p (float, optional): Nucleus sampling parameter. Defaults to 1.0.
         presence_penalty (float, optional): Penalty for token presence. Defaults to 0.0.
         frequency_penalty (float, optional): Penalty for token frequency. Defaults to 0.0.
@@ -121,8 +124,24 @@ def summarize_conversation_groq(
     try:
         client = get_groq_client()
         
-        # Create prompt with Groq's TPM limit in mind
-        prompt = create_conversation_prompt(messages, max_tokens=6000)  # Groq's current TPM limit
+        # Respect GROQ's TPM limit while reserving tokens for response
+        input_token_limit = 6000 - max_tokens
+        prompt = create_conversation_prompt(messages, max_tokens=input_token_limit)
+        
+        # Save prompt for analysis
+        metadata = {
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "top_p": top_p,
+            "presence_penalty": presence_penalty,
+            "frequency_penalty": frequency_penalty,
+            "conversation_id": conversation_details.get("conversation_id", "unknown"),
+            "num_messages": len(messages),
+            "num_contexts": len(contexts),
+            "estimated_tokens": estimate_tokens(prompt)
+        }
+        save_groq_prompt(prompt, metadata)
         
         chat_completion: ChatCompletion = client.chat.completions.create(
             messages=[{
@@ -150,5 +169,5 @@ def summarize_conversation_groq(
         error_msg = str(e)
         st.error(f"Error while generating summary: {error_msg}")
         if "rate_limit_exceeded" in error_msg.lower():
-            return "Unable to generate summary: The conversation is too long for the current token limits. Please try summarizing a shorter conversation."
+            return "Unable to generate summary: The conversation is too long for GROQ's current rate limits. Please try again in a minute or summarize a shorter conversation."
         return "Failed to generate summary due to an error."

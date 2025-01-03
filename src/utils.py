@@ -77,3 +77,69 @@ def format_timestamp(timestamp) -> str:
         return timestamp
     except:
         return 'N/A'
+
+def save_groq_prompt(prompt: str, metadata: dict = None, base_dir: str = "prompts") -> str:
+    """Save a GROQ prompt to a file for analysis.
+    
+    Args:
+        prompt (str): The prompt text to save
+        metadata (dict, optional): Additional metadata to save with the prompt. Defaults to None.
+        base_dir (str, optional): Base directory for saving prompts. Defaults to "prompts".
+        
+    Returns:
+        str: Path to the saved prompt file
+    """
+    import os
+    import json
+    from datetime import datetime
+    
+    # Get the project root directory (where the src folder is)
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    # Create prompts directory in project root
+    prompts_dir = os.path.join(project_root, base_dir)
+    os.makedirs(prompts_dir, exist_ok=True)
+    
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"groq_prompt_{timestamp}.txt"
+    filepath = os.path.join(prompts_dir, filename)
+    
+    # Format metadata for better readability
+    formatted_metadata = {
+        "timestamp": timestamp,
+        "metadata": {
+            "Model Configuration": {
+                "model": metadata.get("model", "unknown"),
+                "temperature": metadata.get("temperature", "N/A"),
+                "max_tokens": metadata.get("max_tokens", "N/A"),
+                "top_p": metadata.get("top_p", "N/A"),
+                "presence_penalty": metadata.get("presence_penalty", "N/A"),
+                "frequency_penalty": metadata.get("frequency_penalty", "N/A")
+            },
+            "Conversation Details": {
+                "conversation_id": metadata.get("conversation_id", "unknown"),
+                "number_of_messages": metadata.get("num_messages", 0),
+                "number_of_contexts": metadata.get("num_contexts", 0),
+                "estimated_tokens": metadata.get("estimated_tokens", 0)
+            }
+        } if metadata else {}
+    }
+    
+    # Format the content for the file
+    content = []
+    content.append("=" * 80)
+    content.append("METADATA")
+    content.append("=" * 80)
+    content.append(json.dumps(formatted_metadata, indent=2, ensure_ascii=False))
+    content.append("\n" + "=" * 80)
+    content.append("PROMPT")
+    content.append("=" * 80)
+    content.append(prompt)
+    content.append("\n" + "=" * 80)
+    
+    # Save to file
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write("\n".join(content))
+        
+    return filepath
